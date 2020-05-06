@@ -1,4 +1,6 @@
 import monetdblite
+import pathlib
+
 conn = monetdblite.make_connection(':memory:')
 c = conn.cursor()
 c.execute('CREATE TABLE integers (i INTEGER)')
@@ -33,3 +35,19 @@ c.execute(partsuppTable)
 c.execute(customerTable)
 c.execute(ordersTable)
 c.execute(lineitemTable)
+
+print(pathlib.Path(__file__).parent.absolute())
+
+tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
+for table in tables:
+    toExecute = "COPY INTO " + table +  " FROM '/home/2017/dvanac/Comp400/test_runners/data/" + table + ".tbl' USING DELIMITERS '|', '" + "\n"  + "';"
+    print(toExecute)
+    c.execute(toExecute)
+    print("Executed insert on table:", table)
+
+while True:
+    command = input("Please enter a SQL statement or exit to quit")
+    if(command == "exit"):
+        break
+    c.execute(command)
+    print(c.fetchall())
