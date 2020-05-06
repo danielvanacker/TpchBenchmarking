@@ -37,7 +37,11 @@ for table in tables:
     print(toExecute)
     c.execute(toExecute)
 
-c.execute("SELECT * FROM region")
-print(c.fetchall())
+while True:
+    command = input("Please enter a SQL statement or exit to quit")
+    if(command == "exit"):
+        break
+    c.execute(command)
+    print(c.fetchall())
 
 
