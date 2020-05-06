@@ -30,3 +30,14 @@ c.execute(partsuppTable)
 c.execute(customerTable)
 c.execute(ordersTable)
 c.execute(lineitemTable)
+
+tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
+for table in tables:
+    toExecute = "COPY " + table +  " FROM '../data/" + table + ".tbl' (DELIMITER '|');"
+    print(toExecute)
+    c.execute(toExecute)
+
+c.execute("SELECT * FROM region")
+print(c.fetchall())
+
+
