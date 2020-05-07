@@ -1,5 +1,6 @@
 import duckdb
 import helper
+from datetime import date
 
 con = duckdb.connect(":memory:")
 c = con.cursor()
@@ -8,8 +9,9 @@ def main():
     testCon()
     createTables()
     importData()
+    queryThree()
     queryTwo()
-    #queryOne()
+    queryOne()
     sqlLoop()
 
 def testCon():
@@ -72,18 +74,32 @@ def queryOne():
 
 def queryTwo():
     region = helper.getRName()
+    randType = helper.getType()
+    size = helper.rand(1, 50)
     subQuery = "SELECT min(ps_supplycost) FROM partsupp, supplier, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '" + region + "'"
     select = "s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment"
     fromTbl = "part, supplier, partsupp, nation, region"
-    where = "p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND p_size = " + str(helper.rand(1, 50)) + " AND p_type like '%" + helper.getType() + "' AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '" + region + "' AND ps_supplycost = (" + subQuery + ")"
-    order = "s_acctbal desc, n_name, s_name, p_partkey;"
-    query = "SELECT " + select + " FROM " + fromTbl + " WHERE " + where + " ORDER BY " + order
+    where = "p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND p_size = " + str(size) + " AND p_type like '%" + randType + "' AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '" + region + "' AND ps_supplycost = (" + subQuery + ")"
+    order = "s_acctbal desc, n_name, s_name, p_partkey"
+    limit = " FETCH FIRST 100 ROWS ONLY"
+    query = "SELECT " + select + " FROM " + fromTbl + " WHERE " + where + " ORDER BY " + order + limit
 
     c.execute(query)
     print(c.fetchall())
 
 def queryThree():
-    print("TODO")
+    segment = helper.getSegment()
+    randDate = helper.getRandDate(date(1995, 3, 1), date(1995, 3, 31))
+    select = "l_orderkey, sum(l_extendedprice * (1 - l_discount)) as revenue, o_orderdate, o_shippriority"
+    fromTbl = "customer, orders, lineitem"
+    where = "c_mktsegment = '" + segment + "' AND c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate < date '" + randDate + "' AND l_shipdate > date '" + randDate + "'"
+    group = "l_orderkey, o_orderdate, o_shippriority"
+    order = "revenue desc, o_orderdate"
+    limit = " FETCH FIRST 10 ROWS ONLY"
+    query = "SELECT " + select + " FROM " + fromTbl + " WHERE " + where + " GROUP BY " + group + " ORDER BY " + order + limit
+
+    c.execute(query)
+    print(c.fetchall())
 
 if __name__ == "__main__":
     main()
