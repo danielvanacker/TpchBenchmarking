@@ -8,6 +8,7 @@ def main():
     testCon()
     createTables()
     importData()
+    queryOne()
     sqlLoop()
 
 def testCon():
@@ -55,6 +56,18 @@ def sqlLoop():
             return
         c.execute(command)
         print(c.fetchall())
+
+def queryOne():
+    delta = random.randint(60, 120)
+    select = "l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * ( 1 - l_discount) * ( 1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order"
+    fromTbl = "lineitem"
+    where = "l_shipdate <= DATE '1998-12-01' - " + str(delta)
+    group = "l_returnflag, l_linestatus"
+    order = "l_returnflag, l_linestatus"
+    query = "SELECT " + select + " FROM " + fromTbl + " WHERE " + where + " GROUP BY " + group + " ORDER BY " + order
+
+    c.execute(query)
+    print(c.fetchall())
 
 if __name__ == "__main__":
     main()
