@@ -1,5 +1,6 @@
 import duckdb
 import helper
+import random
 from datetime import date
 
 con = duckdb.connect(":memory:")
@@ -9,7 +10,7 @@ def main():
     testCon()
     createTables()
     importData()
-    query5()
+    query7()
     sqlLoop()
 
 def testCon():
@@ -125,6 +126,33 @@ def query5():
     
     c.execute(query)
     print(c.fetchall())
+
+def query6():
+    randDate = date(helper.rand(1993, 1997), 1, 1)
+    discount = str(random.uniform(0.02, 0.09))
+    quantity = str(helper.rand(24, 25))
+    addDays = addDays = str(helper.yearsToDays(randDate, 1))
+    select = "sum(l_extendedprice * l_discount) as revenue"
+    fromTbl = "lineitem"
+    where = f"l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays} AND l_discount between {discount} - 0.01 AND {discount} + 0.01 AND l_quantity < {quantity}"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query7():
+    (nation1, nation2) = helper.getNNames()
+    select = "supp_nation, cust_nation, l_year, sum(volume) as revenue"
+    subSelect = "n1.n_name as supp_nation, n2.n_name as cust_nation, extract(year from l_shipdate) as l_year, l_extendedprice * (1 - l_discount) as volume"
+    subFromTbl = "supplier, lineitem, orders, customer, nation n1, nation n2"
+    subWhere = f"s_suppkey = l_suppkey AND o_orderkey = l_orderkey AND c_custkey = o_custkey AND s_nationkey = n1.n_nationkey AND c_nationkey = n2.n_nationkey AND ((n1.n_name = '{nation1}' AND n2.n_name = '{nation2}') OR (n1.n_name = '{nation2}' and n2.n_name = '{nation1}')) AND l_shipdate between date '1995-01-01' and date '1996-12-31'"
+    group = "supp_nation, cust_nation, l_year"
+    order = "supp_nation, cust_nation, l_year"
+    query = f"SELECT {select} FROM(SELECT {subSelect} FROM {subFromTbl} WHERE {subWhere}) AS shipping GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+
 
 if __name__ == "__main__":
     main()
