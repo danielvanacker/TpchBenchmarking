@@ -1,5 +1,5 @@
 import duckdb
-import random
+import helper
 
 con = duckdb.connect(":memory:")
 c = con.cursor()
@@ -8,7 +8,8 @@ def main():
     testCon()
     createTables()
     importData()
-    queryOne()
+    queryTwo()
+    #queryOne()
     sqlLoop()
 
 def testCon():
@@ -58,7 +59,7 @@ def sqlLoop():
         print(c.fetchall())
 
 def queryOne():
-    delta = random.randint(60, 120)
+    delta = helper.rand(60, 120)
     select = "l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * ( 1 - l_discount) * ( 1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order"
     fromTbl = "lineitem"
     where = "l_shipdate <= DATE '1998-12-01' - " + str(delta)
@@ -68,6 +69,21 @@ def queryOne():
 
     c.execute(query)
     print(c.fetchall())
+
+def queryTwo():
+    region = helper.getRName()
+    subQuery = "SELECT min(ps_supplycost) FROM partsupp, supplier, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '" + region + "'"
+    select = "s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment"
+    fromTbl = "part, supplier, partsupp, nation, region"
+    where = "p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND p_size = " + str(helper.rand(1, 50)) + " AND p_type like '%" + helper.getType() + "' AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '" + region + "' AND ps_supplycost = (" + subQuery + ")"
+    order = "s_acctbal desc, n_name, s_name, p_partkey;"
+    query = "SELECT " + select + " FROM " + fromTbl + " WHERE " + where + " ORDER BY " + order
+
+    c.execute(query)
+    print(c.fetchall())
+
+def queryThree():
+    print("TODO")
 
 if __name__ == "__main__":
     main()
