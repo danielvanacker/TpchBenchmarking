@@ -9,6 +9,7 @@ def main():
     testCon()
     createTables()
     importData()
+    query5()
     sqlLoop()
 
 def testCon():
@@ -108,6 +109,20 @@ def query4():
     group = "o_orderpriority"
     order = "o_orderpriority"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
+    c.execute(query)
+    print(c.fetchall())
+
+def query5():
+    region = helper.getRName()
+    randDate = date(helper.rand(1993, 1997), 1, 1)
+    addDays = str(helper.yearsToDays(randDate, 1))
+    select = "n_name, sum(l_extendedprice * (1 - l_discount)) as revenue"
+    fromTbl = "customer, orders, lineitem, supplier, nation, region"
+    where = f"c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '{region}' AND o_orderdate >= date '{randDate}' AND o_orderdate < date '{randDate}' + {addDays}"
+    group = "n_name"
+    order = "revenue desc"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
+    
     c.execute(query)
     print(c.fetchall())
 

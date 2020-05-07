@@ -32,10 +32,15 @@ def monthsToDays(startDate, months):
     newDate = startDate + relativedelta(months=+months)
     return (newDate - startDate).days
 
+def yearsToDays(startDate, years):
+    newDate = startDate + relativedelta(years=+years)
+    return (newDate - startDate).days
+
 print(rand(0, 1))
 print(getType())
 print(getRName())
 print(getSegment())
 print(getRandDate(date(1995, 3, 1), date(1995, 3, 31)))
 print(getRandMonth(date(1995, 3, 1), date(1996, 3, 31)))
-print(monthsToDays(date(2020, 5, 7), 12))
+print(monthsToDays(date(2019, 5, 7), 12))
+print(yearsToDays(date(20, 5, 7), 1))
