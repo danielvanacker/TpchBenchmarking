@@ -9,9 +9,6 @@ def main():
     testCon()
     createTables()
     importData()
-    queryThree()
-    queryTwo()
-    queryOne()
     sqlLoop()
 
 def testCon():
@@ -60,44 +57,57 @@ def sqlLoop():
         c.execute(command)
         print(c.fetchall())
 
-def queryOne():
+def query1():
     delta = helper.rand(60, 120)
     select = "l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * ( 1 - l_discount) * ( 1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order"
     fromTbl = "lineitem"
-    where = "l_shipdate <= DATE '1998-12-01' - " + str(delta)
+    where = f"l_shipdate <= DATE '1998-12-01' - {str(delta)}"
     group = "l_returnflag, l_linestatus"
     order = "l_returnflag, l_linestatus"
-    query = "SELECT " + select + " FROM " + fromTbl + " WHERE " + where + " GROUP BY " + group + " ORDER BY " + order
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
 
     c.execute(query)
     print(c.fetchall())
 
-def queryTwo():
+def query2():
     region = helper.getRName()
     randType = helper.getType()
     size = helper.rand(1, 50)
-    subQuery = "SELECT min(ps_supplycost) FROM partsupp, supplier, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '" + region + "'"
+    subQuery = f"SELECT min(ps_supplycost) FROM partsupp, supplier, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '{region}'"
     select = "s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment"
     fromTbl = "part, supplier, partsupp, nation, region"
-    where = "p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND p_size = " + str(size) + " AND p_type like '%" + randType + "' AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '" + region + "' AND ps_supplycost = (" + subQuery + ")"
+    where = f"p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND p_size = {str(size)} AND p_type like '%{randType}' AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '{region}' AND ps_supplycost = ({subQuery})"
     order = "s_acctbal desc, n_name, s_name, p_partkey"
     limit = " FETCH FIRST 100 ROWS ONLY"
-    query = "SELECT " + select + " FROM " + fromTbl + " WHERE " + where + " ORDER BY " + order + limit
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order} {limit}"
 
     c.execute(query)
     print(c.fetchall())
 
-def queryThree():
+def query3():
     segment = helper.getSegment()
     randDate = helper.getRandDate(date(1995, 3, 1), date(1995, 3, 31))
     select = "l_orderkey, sum(l_extendedprice * (1 - l_discount)) as revenue, o_orderdate, o_shippriority"
     fromTbl = "customer, orders, lineitem"
-    where = "c_mktsegment = '" + segment + "' AND c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate < date '" + randDate + "' AND l_shipdate > date '" + randDate + "'"
+    where = f"c_mktsegment = '{segment}' AND c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate < date '{randDate}' AND l_shipdate > date '{randDate}'"
     group = "l_orderkey, o_orderdate, o_shippriority"
     order = "revenue desc, o_orderdate"
-    limit = " FETCH FIRST 10 ROWS ONLY"
-    query = "SELECT " + select + " FROM " + fromTbl + " WHERE " + where + " GROUP BY " + group + " ORDER BY " + order + limit
+    limit = "FETCH FIRST 10 ROWS ONLY"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order} {limit}"
 
+    c.execute(query)
+    print(c.fetchall())
+
+def query4():
+    randDate = helper.getRandMonth(date(1993, 1, 1), date(1997, 10, 1))
+    addDays = str(helper.monthsToDays(randDate, 3))
+    subQuery = f"SELECT * FROM lineitem WHERE l_orderkey = o_orderkey AND l_commitdate < l_receiptdate"
+    select = "o_orderpriority, count(*) as order_count"
+    fromTbl = "orders"
+    where = f"o_orderdate >= date '{randDate}' AND o_orderdate < date '{randDate}' + {addDays} AND exists ({subQuery})"
+    group = "o_orderpriority"
+    order = "o_orderpriority"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
     c.execute(query)
     print(c.fetchall())
 
