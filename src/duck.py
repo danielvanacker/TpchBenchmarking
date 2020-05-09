@@ -5,12 +5,13 @@ from datetime import date
 
 con = duckdb.connect(":memory:")
 c = con.cursor()
+sf = 0.1
 
 def main():
     testCon()
     createTables()
     importData()
-    query7()
+    query11()
     sqlLoop()
 
 def testCon():
@@ -56,6 +57,9 @@ def sqlLoop():
         command = input("Please enter a SQL statement or exit to quit")
         if(command == "exit"):
             return
+        if(command == "8"):
+            query8()
+            continue
         c.execute(command)
         print(c.fetchall())
 
@@ -73,7 +77,7 @@ def query1():
 
 def query2():
     region = helper.getRName()
-    randType = helper.getType()
+    randType = helper.getType3()
     size = helper.rand(1, 50)
     subQuery = f"SELECT min(ps_supplycost) FROM partsupp, supplier, nation, region WHERE p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '{region}'"
     select = "s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment"
@@ -153,6 +157,67 @@ def query7():
     c.execute(query)
     print(c.fetchall())
 
+def query8():
+    (nation, region) = helper.getNationAndRegion()
+    typeString = helper.getTypeString()
+    print(typeString)
+    select = f"o_year, SUM(CASE WHEN nation = '{nation}' THEN volume ELSE 0 END) / SUM(volume) as mkt_share"
+    subSelect = "extract(year from o_orderdate) as o_year, l_extendedprice * (1-l_discount) as volume, n2.n_name as nation"
+    subFrom = "part, supplier, lineitem, orders, customer, nation n1, nation n2, region"
+    subWhere = f"p_partkey = l_partkey AND s_suppkey = l_suppkey AND l_orderkey = o_orderkey AND o_custkey = c_custkey AND c_nationkey = n1.n_nationkey AND n1.n_regionkey = r_regionkey AND r_name = '{region}' AND s_nationkey = n2.n_nationkey AND o_orderdate between date '1995-01-01' and date '1996-12-31' AND p_type = '{typeString}'"
+    group = "o_year"
+    order = "o_year"
+    subQuery = f"SELECT {subSelect} FROM {subFrom} WHERE {subWhere}"
+    query = f"SELECT {select} FROM ({subQuery}) as all_nations GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query9():
+    color = helper.getColor()
+    select = "nation, o_year, SUM(amount) as sum_profit"
+    subSelect = "n_name as nation, extract(year from o_orderdate) as o_year, l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount"
+    subFrom = "part, supplier, lineitem, partsupp, orders, nation"
+    subWhere = f"s_suppkey = l_suppkey AND ps_suppkey = l_suppkey AND ps_partkey = l_partkey AND p_partkey = l_partkey AND o_orderkey = l_orderkey AND s_nationkey = n_nationkey AND p_name like '%{color}%'"
+    group = "nation, o_year"
+    order = "nation, o_year DESC"
+    subQuery = f"SELECT {subSelect} FROM {subFrom} WHERE {subWhere}"
+    query = f"SELECT {select} FROM({subQuery})AS profit GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query10():
+    randDate = helper.getRandMonth(date(1993, 2, 1), date(1995, 1, 1))
+    addDays = str(helper.monthsToDays(randDate, 3))
+    select = "c_custkey, c_name, sum(l_extendedprice * (1 - l_discount)) as revenue, c_acctbal, n_name, c_address, c_phone, c_comment"
+    fromTbl = "customer, orders, lineitem, nation"
+    where = f"c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= date '{randDate}' AND o_orderdate < date '{randDate}' + {addDays} AND l_returnflag = 'R' AND c_nationkey = n_nationkey"
+    group = "c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment"
+    order = "revenue desc"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query11():
+    (nation, tmp) = helper.getNNames()
+    fraction = 0.0001/sf
+    select = "ps_partkey, SUM(ps_supplycost * ps_availqty) as value"
+    fromTbl = "partsupp, supplier, nation"
+    where = f"ps_suppkey = s_suppkey AND s_nationkey = n_nationkey AND n_name = '{nation}'"
+    subSelect = f"sum(ps_supplycost * ps_availqty) * {fraction}"
+    subFromTbl = "partsupp, supplier, nation"
+    subWhere = f"ps_suppkey = s_suppkey AND s_nationkey = n_nationkey AND n_name = '{nation}'"
+    group = f"ps_partkey HAVING SUM(ps_supplycost * ps_availqty) > (SELECT {subSelect} FROM {subFromTbl} WHERE {subWhere})"
+    order = "value DESC"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query12():
+    print("TODO")
 
 if __name__ == "__main__":
     main()
