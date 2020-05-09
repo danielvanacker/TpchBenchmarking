@@ -11,7 +11,7 @@ def main():
     testCon()
     createTables()
     importData()
-    query11()
+    query12()
     sqlLoop()
 
 def testCon():
@@ -217,7 +217,18 @@ def query11():
     print(c.fetchall())
 
 def query12():
-    print("TODO")
+    (shipmode1, shipmode2) = helper.getModes()
+    randDate = date(helper.rand(1993, 1997), 1, 1)
+    addDays = helper.yearsToDays(randDate, 1)
+    select = "l_shipmode, SUM(CASE WHEN o_orderpriority ='1-URGENT' OR o_orderpriority ='2-HIGH' THEN 1 ELSE 0 END) AS high_line_count, SUM(CASE WHEN o_orderpriority <> '1-URGENT' AND o_orderpriority <> '2-HIGH' THEN 1 ELSE 0 END) AS low_line_count"
+    fromTbl = "orders, lineitem"
+    where = f"o_orderkey = l_orderkey AND l_shipmode in ('{shipmode1}', '{shipmode2}') AND l_commitdate < l_receiptdate AND l_shipdate < l_commitdate AND l_receiptdate >= date '{randDate}' AND l_receiptdate < date '{randDate}' + {addDays}"
+    group = "l_shipmode"
+    order = "l_shipmode"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
 
 if __name__ == "__main__":
     main()
