@@ -80,6 +80,10 @@ def getModes():
     mode2 = modes[rand(0, 5)]
     return (mode1, mode2)
 
+def getWords():
+    words1 = ["special", "pending", "unusual", "express"]
+    words2 = ["packages", "requests", "accounts", "deposits"]
+    return (words1[rand(0, 3)], words2[rand(0, 3)])
 
 print(rand(0, 1))
 print(getType3())
@@ -94,3 +98,4 @@ print(getNationAndRegion())
 print(getTypeString())
 print(getColor())
 print(getModes())
+print(getWords())

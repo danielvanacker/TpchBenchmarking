@@ -11,7 +11,7 @@ def main():
     testCon()
     createTables()
     importData()
-    query12()
+    query14()
     sqlLoop()
 
 def testCon():
@@ -229,6 +229,29 @@ def query12():
 
     c.execute(query)
     print(c.fetchall())
+
+def query13():
+    (word1, word2) = helper.getWords()
+    select = "c_count, count(*) as custdist"
+    fromTbl = f"(SELECT c_custkey, count(o_orderkey) FROM customer LEFT OUTER JOIN orders ON c_custkey = o_custkey AND o_comment not like '%{word1}%{word2}%' GROUP BY c_custkey) AS c_orders (c_custkey, c_count)"
+    group = "c_count"
+    order = "custdist DESC, c_count DESC"
+    query = f"SELECT {select} FROM {fromTbl} GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query14():
+    randDate = date(helper.rand(1993, 1997), helper.rand(1, 12), 1)
+    addDays = helper.monthsToDays(randDate, 1)
+    select = "100.00 * SUM(CASE WHEN p_type like 'PROMO%' THEN l_extendedprice*(1-l_discount) ELSE 0 END) / SUM(l_extendedprice * (1 - l_discount)) AS promo_revenue"
+    fromTbl = "lineitem, part"
+    where = f"l_partkey = p_partkey AND l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays}"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where}"
+
+    c.execute(query)
+    print(c.fetchall())
+
 
 if __name__ == "__main__":
     main()
