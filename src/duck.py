@@ -4,6 +4,7 @@ import monetdblite
 import random
 import sys
 from datetime import date
+from timeit import default_timer as timer
 
 sf = 0.1
 con = None
@@ -48,8 +49,24 @@ def main():
         print("Error importing data or creating tables.")
     
     
-    query22()
-    sqlLoop()
+    for i in range(1, 23):
+        function = f"query{i}()"
+        try:
+            if i == 15:
+                (view, query, drop) = eval(function)
+                start = timer()
+                c.execute(view)
+                c.execute(query)
+                c.execute(drop)
+                end = timer()
+            else:
+                query = eval(function)
+                start = timer()
+                c.execute(query)
+                end = timer()
+            print(f"Query {i} took {end - start} seconds.")
+        except:
+            print(f"Error executing query {i}.")
 
 def testCon():
     c.execute("CREATE TABLE people(name VARCHAR(50), age INTEGER, sex CHAR(1))")
