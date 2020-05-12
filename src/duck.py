@@ -7,6 +7,7 @@ from datetime import date
 
 sf = 0.1
 con = None
+db = None
 
 def main():
     if len(sys.argv) == 0:
@@ -15,6 +16,7 @@ def main():
     
     global con
     global c
+    global db
     db = sys.argv[1]
     
     if db == "duck":
@@ -32,7 +34,7 @@ def main():
     testCon()
     createTables()
     importData(db)
-    #query22()
+    query22()
     sqlLoop()
 
 def testCon():
@@ -117,8 +119,8 @@ def query2():
     fromTbl = "part, supplier, partsupp, nation, region"
     where = f"p_partkey = ps_partkey AND s_suppkey = ps_suppkey AND p_size = {str(size)} AND p_type like '%{randType}' AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '{region}' AND ps_supplycost = ({subQuery})"
     order = "s_acctbal desc, n_name, s_name, p_partkey"
-    limit = " FETCH FIRST 100 ROWS ONLY"
-    query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order} {limit}"
+    limit = " LIMIT 100"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order} {limit};"
 
     c.execute(query)
     print(c.fetchall())
@@ -131,7 +133,7 @@ def query3():
     where = f"c_mktsegment = '{segment}' AND c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate < date '{randDate}' AND l_shipdate > date '{randDate}'"
     group = "l_orderkey, o_orderdate, o_shippriority"
     order = "revenue desc, o_orderdate"
-    limit = "FETCH FIRST 10 ROWS ONLY"
+    limit = "LIMIT 10"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order} {limit}"
 
     c.execute(query)
@@ -139,7 +141,10 @@ def query3():
 
 def query4():
     randDate = helper.getRandMonth(date(1993, 1, 1), date(1997, 10, 1))
-    addDays = str(helper.monthsToDays(randDate, 3))
+    if db == "duck":
+        addDays = str(helper.monthsToDays(randDate, 3))
+    elif db == "monet":
+        addDays = "interval '3' month"
     subQuery = f"SELECT * FROM lineitem WHERE l_orderkey = o_orderkey AND l_commitdate < l_receiptdate"
     select = "o_orderpriority, count(*) as order_count"
     fromTbl = "orders"
@@ -153,7 +158,10 @@ def query4():
 def query5():
     region = helper.getRName()
     randDate = date(helper.rand(1993, 1997), 1, 1)
-    addDays = str(helper.yearsToDays(randDate, 1))
+    if db == "duck":
+        addDays = str(helper.yearsToDays(randDate, 1))
+    elif db == "monet":
+        addDays = "interval '1' year"    
     select = "n_name, sum(l_extendedprice * (1 - l_discount)) as revenue"
     fromTbl = "customer, orders, lineitem, supplier, nation, region"
     where = f"c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '{region}' AND o_orderdate >= date '{randDate}' AND o_orderdate < date '{randDate}' + {addDays}"
@@ -168,7 +176,10 @@ def query6():
     randDate = date(helper.rand(1993, 1997), 1, 1)
     discount = str(random.uniform(0.02, 0.09))
     quantity = str(helper.rand(24, 25))
-    addDays = addDays = str(helper.yearsToDays(randDate, 1))
+    if db == "duck":
+        addDays = str(helper.yearsToDays(randDate, 1))
+    elif db == "monet":
+        addDays = "interval '1' year"
     select = "sum(l_extendedprice * l_discount) as revenue"
     fromTbl = "lineitem"
     where = f"l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays} AND l_discount between {discount} - 0.01 AND {discount} + 0.01 AND l_quantity < {quantity}"
@@ -193,7 +204,6 @@ def query7():
 def query8():
     (nation, region) = helper.getNationAndRegion()
     typeString = helper.getTypeString()
-    print(typeString)
     select = f"o_year, SUM(CASE WHEN nation = '{nation}' THEN volume ELSE 0 END) / SUM(volume) as mkt_share"
     subSelect = "extract(year from o_orderdate) as o_year, l_extendedprice * (1-l_discount) as volume, n2.n_name as nation"
     subFrom = "part, supplier, lineitem, orders, customer, nation n1, nation n2, region"
@@ -222,7 +232,10 @@ def query9():
 
 def query10():
     randDate = helper.getRandMonth(date(1993, 2, 1), date(1995, 1, 1))
-    addDays = str(helper.monthsToDays(randDate, 3))
+    if db == "duck":
+        addDays = str(helper.monthsToDays(randDate, 3))
+    elif db == "monet":
+        addDays = "interval '3' month"
     select = "c_custkey, c_name, sum(l_extendedprice * (1 - l_discount)) as revenue, c_acctbal, n_name, c_address, c_phone, c_comment"
     fromTbl = "customer, orders, lineitem, nation"
     where = f"c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= date '{randDate}' AND o_orderdate < date '{randDate}' + {addDays} AND l_returnflag = 'R' AND c_nationkey = n_nationkey"
@@ -252,7 +265,10 @@ def query11():
 def query12():
     (shipmode1, shipmode2) = helper.getModes()
     randDate = date(helper.rand(1993, 1997), 1, 1)
-    addDays = helper.yearsToDays(randDate, 1)
+    if db == "duck":
+        addDays = str(helper.yearsToDays(randDate, 1))
+    elif db == "monet":
+        addDays = "interval '1' year"
     select = "l_shipmode, SUM(CASE WHEN o_orderpriority ='1-URGENT' OR o_orderpriority ='2-HIGH' THEN 1 ELSE 0 END) AS high_line_count, SUM(CASE WHEN o_orderpriority <> '1-URGENT' AND o_orderpriority <> '2-HIGH' THEN 1 ELSE 0 END) AS low_line_count"
     fromTbl = "orders, lineitem"
     where = f"o_orderkey = l_orderkey AND l_shipmode in ('{shipmode1}', '{shipmode2}') AND l_commitdate < l_receiptdate AND l_shipdate < l_commitdate AND l_receiptdate >= date '{randDate}' AND l_receiptdate < date '{randDate}' + {addDays}"
@@ -276,7 +292,10 @@ def query13():
 
 def query14():
     randDate = date(helper.rand(1993, 1997), helper.rand(1, 12), 1)
-    addDays = helper.monthsToDays(randDate, 1)
+    if db == "duck":
+        addDays = str(helper.monthsToDays(randDate, 1))
+    elif db == "monet":
+        addDays = "interval '1' month"
     select = "100.00 * SUM(CASE WHEN p_type like 'PROMO%' THEN l_extendedprice*(1-l_discount) ELSE 0 END) / SUM(l_extendedprice * (1 - l_discount)) AS promo_revenue"
     fromTbl = "lineitem, part"
     where = f"l_partkey = p_partkey AND l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays}"
@@ -287,7 +306,10 @@ def query14():
 
 def query15():
    randDate = helper.getRandMonth(date(1993, 1, 1), date(1997, 10, 1))
-   addDays = helper.monthsToDays(randDate, 3)
+   if db == "duck":
+        addDays = str(helper.monthsToDays(randDate, 3))
+   elif db == "monet":
+        addDays = "interval '3' day"
    view = f"CREATE VIEW revenue (supplier_no, total_revenue) AS SELECT l_suppkey, sum(l_extendedprice * (1 - l_discount)) FROM lineitem WHERE l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays} GROUP BY l_suppkey"
    select = "s_suppkey, s_name, s_address, s_phone, total_revenue"
    fromTbl = "supplier, revenue"
@@ -364,7 +386,10 @@ def query20():
     color = helper.getColor()
     randDate = date(helper.rand(1993, 1997), 1, 1)
     (nation, tmp) = helper.getNNames()
-    addDays = helper.yearsToDays(randDate, 1)
+    if db == "duck":
+        addDays = str(helper.yearsToDays(randDate, 1))
+    elif db == "monet":
+        addDays = "interval '1' year"
     select = "s_name, s_address"
     fromTbl = "supplier, nation"
     subQuery = f"SELECT ps_suppkey FROM partsupp WHERE ps_partkey in (SELECT p_partkey FROM part WHERE p_name LIKE '{color}%') AND  ps_availqty > (SELECT 0.5 * SUM(l_quantity) FROM lineitem WHERE l_partkey = ps_partkey AND l_suppkey = ps_suppkey AND l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays})"
@@ -382,7 +407,7 @@ def query21():
     where = f"s_suppkey = l1.l_suppkey AND o_orderkey = l1.l_orderkey AND o_orderstatus = 'F' AND l1.l_receiptdate > l1.l_commitdate AND exists (SELECT * FROM lineitem l2 WHERE l2.l_orderkey = l1.l_orderkey AND l2.l_suppkey <> l1.l_suppkey) AND not exists (SELECT * FROM lineitem l3 WHERE l3.l_orderkey = l1.l_orderkey AND l3.l_suppkey <> l1.l_suppkey AND l3.l_receiptdate > l3.l_commitdate) AND s_nationkey = n_nationkey AND n_name = '{nation}'"
     group = "s_name"
     order = "numwait DESC, s_name"
-    limit = "FETCH FIRST 100 ROWS ONLY"
+    limit = "LIMIT 100"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order} {limit}"
 
     c.execute(query)
