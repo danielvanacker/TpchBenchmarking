@@ -15,15 +15,13 @@ def main():
     
     global con
     global c
-
-    print(sys.argv[1])
+    db = sys.argv[1]
     
-    if sys.argv[1] == "duck":
-        print("DUCK")
+    if db == "duck":
         con = duckdb.connect(":memory:")
         c = con.cursor()
     
-    elif sys.argv[1] == "monet":
+    elif db == "monet":
         con = monetdblite.make_connection(":memory:")
         c = con.cursor()
 
@@ -33,7 +31,7 @@ def main():
 
     testCon()
     createTables()
-    #importData()
+    importData(db)
     #query22()
     sqlLoop()
 
@@ -66,14 +64,26 @@ def createTables():
         c.execute(table)
         print("Complete")
 
-def importDuckData():
+def importData(db):
 
     tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
     for table in tables:
-        toExecute = "COPY " + table +  " FROM '../data/" + table + ".tbl' (DELIMITER '|');"
+        if db == "duck":    
+            toExecute = "COPY " + table +  " FROM '../data/" + table + ".tbl' (DELIMITER '|');"
+        elif db == "monet":
+            toExecute = "COPY INTO " + table +  " FROM '/home/2017/dvanac/Comp400/test_runners/data/" + table + ".tbl' USING DELIMITERS '|', '" + "\n"  + "';"
         print("Executing:", toExecute)
         c.execute(toExecute)
         print("Complete")
+
+def importMonetData():
+
+    tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
+    for table in tables:
+        toExecute = "COPY INTO " + table +  " FROM '/home/2017/dvanac/Comp400/test_runners/data/" + table + ".tbl' USING DELIMITERS '|', '" + "\n"  + "';"
+        print(toExecute)
+        c.execute(toExecute)
+        print("Executed insert on table:", table)
 
 def sqlLoop():
     while True:
