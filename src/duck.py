@@ -19,21 +19,35 @@ def main():
     global db
     db = sys.argv[1]
     
-    if db == "duck":
-        con = duckdb.connect(":memory:")
-        c = con.cursor()
-    
-    elif db == "monet":
-        con = monetdblite.make_connection(":memory:")
-        c = con.cursor()
+    try:
+        if db == "duck":
+            con = duckdb.connect(":memory:")
+            c = con.cursor()
+        
+        elif db == "monet":
+            con = monetdblite.make_connection(":memory:")
+            c = con.cursor()
 
-    else:
-        print("Not a recognized database")
+        else:
+            print("Not a recognized database")
+            return
+    
+    except RuntimeError:
+        print("Error creating database.")
         return
 
-    testCon()
-    createTables()
-    importData(db)
+    try:
+        testCon()
+    except RuntimeError:
+        print("Tests are failing.")
+    
+    try:
+        createTables()
+        importData(db)
+    except RuntimeError:
+        print("Error importing data or creating tables.")
+    
+    
     query22()
     sqlLoop()
 
@@ -107,8 +121,7 @@ def query1():
     order = "l_returnflag, l_linestatus"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query2():
     region = helper.getRName()
@@ -122,8 +135,7 @@ def query2():
     limit = " LIMIT 100"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order} {limit};"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query3():
     segment = helper.getSegment()
@@ -136,8 +148,7 @@ def query3():
     limit = "LIMIT 10"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order} {limit}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query4():
     randDate = helper.getRandMonth(date(1993, 1, 1), date(1997, 10, 1))
@@ -152,8 +163,8 @@ def query4():
     group = "o_orderpriority"
     order = "o_orderpriority"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
-    c.execute(query)
-    print(c.fetchall())
+    
+    return query
 
 def query5():
     region = helper.getRName()
@@ -169,8 +180,7 @@ def query5():
     order = "revenue desc"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
     
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query6():
     randDate = date(helper.rand(1993, 1997), 1, 1)
@@ -185,8 +195,7 @@ def query6():
     where = f"l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays} AND l_discount between {discount} - 0.01 AND {discount} + 0.01 AND l_quantity < {quantity}"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query7():
     (nation1, nation2) = helper.getNNames()
@@ -198,8 +207,7 @@ def query7():
     order = "supp_nation, cust_nation, l_year"
     query = f"SELECT {select} FROM(SELECT {subSelect} FROM {subFromTbl} WHERE {subWhere}) AS shipping GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query8():
     (nation, region) = helper.getNationAndRegion()
@@ -213,8 +221,7 @@ def query8():
     subQuery = f"SELECT {subSelect} FROM {subFrom} WHERE {subWhere}"
     query = f"SELECT {select} FROM ({subQuery}) as all_nations GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query9():
     color = helper.getColor()
@@ -227,8 +234,7 @@ def query9():
     subQuery = f"SELECT {subSelect} FROM {subFrom} WHERE {subWhere}"
     query = f"SELECT {select} FROM({subQuery})AS profit GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query10():
     randDate = helper.getRandMonth(date(1993, 2, 1), date(1995, 1, 1))
@@ -243,8 +249,7 @@ def query10():
     order = "revenue desc"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query11():
     (nation, tmp) = helper.getNNames()
@@ -259,8 +264,7 @@ def query11():
     order = "value DESC"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query12():
     (shipmode1, shipmode2) = helper.getModes()
@@ -276,8 +280,7 @@ def query12():
     order = "l_shipmode"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query13():
     (word1, word2) = helper.getWords()
@@ -287,8 +290,7 @@ def query13():
     order = "custdist DESC, c_count DESC"
     query = f"SELECT {select} FROM {fromTbl} GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query14():
     randDate = date(helper.rand(1993, 1997), helper.rand(1, 12), 1)
@@ -301,8 +303,7 @@ def query14():
     where = f"l_partkey = p_partkey AND l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays}"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query15():
    randDate = helper.getRandMonth(date(1993, 1, 1), date(1997, 10, 1))
@@ -317,11 +318,8 @@ def query15():
    order = "s_suppkey"
    drop = "DROP VIEW revenue"
    query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order}"
-
-   c.execute(view)
-   c.execute(query)
-   print(c.fetchall())
-   c.execute(drop)
+   
+   return (view, query, drop)
 
 def query16():
     brand = helper.getBrand()
@@ -337,8 +335,7 @@ def query16():
     order = "supplier_cnt DESC, p_brand, p_type, p_size"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
     
 def query17():
     brand = helper.getBrand()
@@ -349,8 +346,7 @@ def query17():
     where = f"p_partkey = l_partkey AND p_brand = '{brand}' AND p_container = '{container}' AND l_quantity < ({subQuery})"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query18():
     quantity = helper.rand(312, 315) #Does not exists for scale factor of 0.1
@@ -362,8 +358,7 @@ def query18():
     order = "o_totalprice desc, o_orderdate"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query19():
     quantity1 = helper.rand(1, 10)
@@ -379,8 +374,7 @@ def query19():
     where3 = f"p_partkey = l_partkey AND p_brand = '{brand3}' AND p_container in ( 'LG CASE', 'LG BOX', 'LG PACK', 'LG PKG') AND l_quantity >= {quantity3} AND l_quantity <= {quantity3} + 10 AND p_size between 1 and 15 AND l_shipmode in ('AIR', 'AIR REG') AND l_shipinstruct = 'DELIVER IN PERSON'"
     query = f"SELECT {select} FROM {fromTbl} WHERE ({where1}) OR ({where2}) OR ({where3})"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query20():
     color = helper.getColor()
@@ -397,8 +391,7 @@ def query20():
     order = "s_name"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query21():
     (nation, tmp) = helper.getNNames()
@@ -410,8 +403,7 @@ def query21():
     limit = "LIMIT 100"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order} {limit}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 def query22():
     codes = helper.getCountryCodes()
@@ -425,8 +417,7 @@ def query22():
     order = "cntrycode"
     query = f"SELECT {select} FROM {fromTbl} GROUP BY {group} ORDER BY {order}"
 
-    c.execute(query)
-    print(c.fetchall())
+    return query
 
 if __name__ == "__main__":
     main()
