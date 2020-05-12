@@ -1,23 +1,44 @@
 import duckdb
 import helper
+import monetdblite
 import random
 import sys
 from datetime import date
 
 sf = 0.1
+con = None
 
 def main():
-    global con = duckdb.connect(":memory:")
-    global c = con.cursor()
+    if len(sys.argv) == 0:
+        print("Please provide the database name you want to test (duck or monet).")
+        return
     
+    global con
+    global c
+
+    print(sys.argv[1])
+    
+    if sys.argv[1] == "duck":
+        print("DUCK")
+        con = duckdb.connect(":memory:")
+        c = con.cursor()
+    
+    elif sys.argv[1] == "monet":
+        con = monetdblite.make_connection(":memory:")
+        c = con.cursor()
+
+    else:
+        print("Not a recognized database")
+        return
+
     testCon()
     createTables()
-    importData()
-    query22()
+    #importData()
+    #query22()
     sqlLoop()
 
 def testCon():
-    c.execute("CREATE TABLE people(name VARCHAR, age INTEGER, sex CHAR(1))")
+    c.execute("CREATE TABLE people(name VARCHAR(50), age INTEGER, sex CHAR(1))")
     c.execute("INSERT INTO people VALUES ('Daniel', 20, 'M')")
     c.execute("SELECT * FROM people")
     print(c.fetchall())
@@ -45,7 +66,7 @@ def createTables():
         c.execute(table)
         print("Complete")
 
-def importData():
+def importDuckData():
 
     tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
     for table in tables:

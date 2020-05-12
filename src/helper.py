@@ -114,22 +114,3 @@ def getCountryCodes():
 
     return codes
 
-
-print(rand(0, 1))
-print(getType3())
-print(getRName())
-print(getSegment())
-print(getRandDate(date(1995, 3, 1), date(1995, 3, 31)))
-print(getRandMonth(date(1995, 3, 1), date(1996, 3, 31)))
-print(monthsToDays(date(2019, 5, 7), 12))
-print(yearsToDays(date(20, 5, 7), 1))
-print(getNNames())
-print(getNationAndRegion())
-print(getTypeString())
-print(getTypeString2())
-print(getColor())
-print(getModes())
-print(getWords())
-print(getBrand())
-print(getContainer())
-print(getCountryCodes())
