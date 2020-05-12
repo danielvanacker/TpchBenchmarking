@@ -20,8 +20,12 @@ def getType3():
 def getTypeString():
     return getType1() + " " + getType2() + " " + getType3() 
 
+def getTypeString2():
+    return getType1() + " " + getType2()
+
+# Returns list of (N_NationKey, N_Name, N_RegionKey)
 def getNationRegions():
-    return [("ALGERIA", 0), ("ARGENTINA", 1), ("BRAZIL", 1), ("CANADA", 1), ("EGYPT", 4), ("ETHIOPIA", 0), ( "FRANCE", 3), ("GERMANY", 3), ("INDIA", 2), ("INDONESIA", 2), ("IRAN", 4), ("IRAQ", 4), ("JAPAN", 2), ("JORDAN", 4), ("KENYA", 0), ("MOROCCO", 0), ("MOZAMBIQUE", 0), ("PERU", 1), ("CHINA", 2), ("ROMANIA", 3), ("SAUDI ARABIA", 4), ("VIETNAM", 2), ("RUSSIA", 3), ("UNITED KINGDOM", 3), ("UNITED STATES", 1)]
+    return [(0, "ALGERIA", 0), (1, "ARGENTINA", 1), (2, "BRAZIL", 1), (3, "CANADA", 1), (4, "EGYPT", 4), (5, "ETHIOPIA", 0), (6, "FRANCE", 3), (7, "GERMANY", 3), (8, "INDIA", 2), (9, "INDONESIA", 2), (10, "IRAN", 4), (11, "IRAQ", 4), (12, "JAPAN", 2), (13, "JORDAN", 4), (14, "KENYA", 0), (15, "MOROCCO", 0), (16, "MOZAMBIQUE", 0), (17, "PERU", 1), (18, "CHINA", 2), (19, "ROMANIA", 3), (20, "SAUDI ARABIA", 4), (21, "VIETNAM", 2), (22, "RUSSIA", 3), (23, "UNITED KINGDOM", 3), (24, "UNITED STATES", 1)]
 
 def getColor():
     color = ["almond", "antique", "aquamarine", "azure", "beige", "bisque", "black", "blanched", "blue", "blush", "brown", "burlywood", "burnished", "chartreuse", "chiffon", "chocolate", "coral", "cornflower", "cornsilk", "cream", "cyan", "dark", "deep", "dim", "dodger", "drab", "firebrick", "floral", "forest", "frosted", "gainsboro", "ghost", "goldenrod", "green", "grey", "honeydew", "hot", "indian", "ivory", "khaki", "lace", "lavender", "lawn", "lemon", "light", "lime", "linen", "magenta", "maroon", "medium", "metallic", "midnight", "mint", "misty", "moccasin", "navajo", "navy", "olive", "orange", "orchid", "pale", "papaya", "peach", "peru", "pink", "plum", "powder", "puff", "purple", "red", "rose", "rosy", "royal", "saddle", "salmon", "sandy", "seashell", "sienna", "sky", "slate", "smoke", "snow", "spring", "steel", "tan", "thistle", "tomato", "turquoise", "violet", "wheat", "white", "yellow"]
@@ -60,15 +64,15 @@ def yearsToDays(startDate, years):
 def getNNames():
     nations = getNationRegions()
     index = rand(0, 24)
-    (nation1, r1) = nations[index]
+    (tmp, nation1, r1) = nations[index]
     del nations[index]
-    (nation2, r2) = nations[rand(0, 23)]
+    (tmp, nation2, r2) = nations[rand(0, 23)]
     return (nation1, nation2)
 
 def getNationAndRegion():
     nations = getNationRegions()
     regions = getRegions()
-    (nation, regionInd) = nations[rand(0, 24)]
+    (tmp, nation, regionInd) = nations[rand(0, 24)]
     region = regions[regionInd]
     return (nation, region)
 
@@ -85,6 +89,32 @@ def getWords():
     words2 = ["packages", "requests", "accounts", "deposits"]
     return (words1[rand(0, 3)], words2[rand(0, 3)])
 
+def getBrand():
+    num1 = str(rand(1, 5))
+    num2 = str(rand(1, 5))
+    return f"Brand#{num1}{num2}"
+
+def getContainer():
+    syllable1 = ["SM", "MED", "JUMBO", "WRAP"]
+    syllable2 = ["CASE", "BAG", "JAR", "PKG", "PACK", "CAN", "DRUM"]
+    return f"{syllable1[rand(0, 3)]} {syllable2[rand(0, 6)]}"
+
+def getCountryCodes():
+    nations = getNationRegions()
+    index = rand(0, len(nations) - 1)
+    (num, tmp1, tmp2) = nations[index]
+    del nations[index]
+    codes = f"'{num + 10}'"
+
+    for i in range(1, 7):
+        ind = rand(0, len(nations) - 1)
+        (num, tmp1, tmp2) = nations[ind]
+        del nations[ind]
+        codes = codes + f", '{num + 10}'"
+
+    return codes
+
+
 print(rand(0, 1))
 print(getType3())
 print(getRName())
@@ -96,6 +126,10 @@ print(yearsToDays(date(20, 5, 7), 1))
 print(getNNames())
 print(getNationAndRegion())
 print(getTypeString())
+print(getTypeString2())
 print(getColor())
 print(getModes())
 print(getWords())
+print(getBrand())
+print(getContainer())
+print(getCountryCodes())

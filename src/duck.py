@@ -11,7 +11,7 @@ def main():
     testCon()
     createTables()
     importData()
-    query14()
+    query22()
     sqlLoop()
 
 def testCon():
@@ -57,8 +57,8 @@ def sqlLoop():
         command = input("Please enter a SQL statement or exit to quit")
         if(command == "exit"):
             return
-        if(command == "8"):
-            query8()
+        if(command == "18"):
+            query18()
             continue
         c.execute(command)
         print(c.fetchall())
@@ -252,6 +252,123 @@ def query14():
     c.execute(query)
     print(c.fetchall())
 
+def query15():
+   randDate = helper.getRandMonth(date(1993, 1, 1), date(1997, 10, 1))
+   addDays = helper.monthsToDays(randDate, 3)
+   view = f"CREATE VIEW revenue (supplier_no, total_revenue) AS SELECT l_suppkey, sum(l_extendedprice * (1 - l_discount)) FROM lineitem WHERE l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays} GROUP BY l_suppkey"
+   select = "s_suppkey, s_name, s_address, s_phone, total_revenue"
+   fromTbl = "supplier, revenue"
+   where = "s_suppkey = supplier_no AND total_revenue = (SELECT max(total_revenue) FROM revenue)"
+   order = "s_suppkey"
+   drop = "DROP VIEW revenue"
+   query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order}"
+
+   c.execute(view)
+   c.execute(query)
+   print(c.fetchall())
+   c.execute(drop)
+
+def query16():
+    brand = helper.getBrand()
+    type = helper.getTypeString2()
+    size = str(helper.rand(1, 50))
+    for i in range(2, 9):
+        size = size + ", " + str(helper.rand(1, 50))
+    select = "p_brand, p_type, p_size, COUNT(distinct ps_suppkey) AS supplier_cnt"
+    fromTbl = "partsupp, part"
+    subQuery = "SELECT s_suppkey FROM supplier WHERE s_comment LIKE '%Customer%Complaints%'"
+    where = f"p_partkey = ps_partkey AND p_brand <> '[BRAND]' AND p_type not like '{type}%' AND p_size in ({size}) AND ps_suppkey not in ({subQuery})"
+    group = "p_brand, p_type, p_size"
+    order = "supplier_cnt DESC, p_brand, p_type, p_size"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+    
+def query17():
+    brand = helper.getBrand()
+    container = helper.getContainer()
+    select = "SUM(l_extendedprice) / 7.0 AS avg_yearly"
+    fromTbl = "lineitem, part"
+    subQuery = "SELECT 0.2 * AVG(l_quantity) FROM lineitem WHERE l_partkey = p_partkey"
+    where = f"p_partkey = l_partkey AND p_brand = '{brand}' AND p_container = '{container}' AND l_quantity < ({subQuery})"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query18():
+    quantity = helper.rand(312, 315) #Does not exists for scale factor of 0.1
+    select = "c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice, SUM(l_quantity)"
+    fromTbl = "customer, orders, lineitem"
+    subQuery = f"SELECT l_orderkey FROM lineitem GROUP BY l_orderkey HAVING SUM(l_quantity) > {quantity}"
+    where = f"o_orderkey in ({subQuery}) AND c_custkey = o_custkey AND o_orderkey = l_orderkey"
+    group = "c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice"
+    order = "o_totalprice desc, o_orderdate"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query19():
+    quantity1 = helper.rand(1, 10)
+    quantity2 = helper.rand(10, 20)
+    quantity3 = helper.rand(20, 30)
+    brand1 = helper.getBrand()
+    brand2 = helper.getBrand()
+    brand3 = helper.getBrand()
+    select = "SUM(l_extendedprice * (1 - l_discount) ) AS revenue"
+    fromTbl = "lineitem, part"
+    where1 = f"p_partkey = l_partkey AND p_brand = '{brand1}' AND p_container in ( 'SM CASE', 'SM BOX', 'SM PACK', 'SM PKG') AND l_quantity >= {quantity1} AND l_quantity <= {quantity1} + 10 AND p_size between 1 and 5 AND l_shipmode in ('AIR', 'AIR REG') AND l_shipinstruct = 'DELIVER IN PERSON'"
+    where2 = f"p_partkey = l_partkey AND p_brand = '{brand2}' AND p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK') AND l_quantity >= {quantity2} and l_quantity <= {quantity2} + 10 AND p_size between 1 and 10 AND l_shipmode in ('AIR', 'AIR REG') AND l_shipinstruct = 'DELIVER IN PERSON'"
+    where3 = f"p_partkey = l_partkey AND p_brand = '{brand3}' AND p_container in ( 'LG CASE', 'LG BOX', 'LG PACK', 'LG PKG') AND l_quantity >= {quantity3} AND l_quantity <= {quantity3} + 10 AND p_size between 1 and 15 AND l_shipmode in ('AIR', 'AIR REG') AND l_shipinstruct = 'DELIVER IN PERSON'"
+    query = f"SELECT {select} FROM {fromTbl} WHERE ({where1}) OR ({where2}) OR ({where3})"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query20():
+    color = helper.getColor()
+    randDate = date(helper.rand(1993, 1997), 1, 1)
+    (nation, tmp) = helper.getNNames()
+    addDays = helper.yearsToDays(randDate, 1)
+    select = "s_name, s_address"
+    fromTbl = "supplier, nation"
+    subQuery = f"SELECT ps_suppkey FROM partsupp WHERE ps_partkey in (SELECT p_partkey FROM part WHERE p_name LIKE '{color}%') AND  ps_availqty > (SELECT 0.5 * SUM(l_quantity) FROM lineitem WHERE l_partkey = ps_partkey AND l_suppkey = ps_suppkey AND l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays})"
+    where = f"s_suppkey IN ({subQuery}) AND s_nationkey = n_nationkey AND n_name = '{nation}'"
+    order = "s_name"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query21():
+    (nation, tmp) = helper.getNNames()
+    select = "s_name, count(*) as numwait"
+    fromTbl = "supplier, lineitem l1, orders, nation"
+    where = f"s_suppkey = l1.l_suppkey AND o_orderkey = l1.l_orderkey AND o_orderstatus = 'F' AND l1.l_receiptdate > l1.l_commitdate AND exists (SELECT * FROM lineitem l2 WHERE l2.l_orderkey = l1.l_orderkey AND l2.l_suppkey <> l1.l_suppkey) AND not exists (SELECT * FROM lineitem l3 WHERE l3.l_orderkey = l1.l_orderkey AND l3.l_suppkey <> l1.l_suppkey AND l3.l_receiptdate > l3.l_commitdate) AND s_nationkey = n_nationkey AND n_name = '{nation}'"
+    group = "s_name"
+    order = "numwait DESC, s_name"
+    limit = "FETCH FIRST 100 ROWS ONLY"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order} {limit}"
+
+    c.execute(query)
+    print(c.fetchall())
+
+def query22():
+    codes = helper.getCountryCodes()
+    select = "cntrycode, count(*) as numcust, sum(c_acctbal) as totacctbal"
+    subSelect = "substring(c_phone from 1 for 2) as cntrycode, c_acctbal"
+    subFromTbl = "customer"
+    subWhere = f"substring(c_phone from 1 for 2) IN ({codes}) AND c_acctbal > (SELECT avg(c_acctbal) FROM customer WHERE c_acctbal > 0.00 AND substring (c_phone from 1 for 2) IN ({codes})) AND not exists (SELECT * FROM orders WHERE o_custkey = c_custkey)"
+    subQuery = f"SELECT {subSelect} FROM {subFromTbl} WHERE {subWhere}"
+    fromTbl = f"({subQuery}) AS custsale"
+    group = "cntrycode"
+    order = "cntrycode"
+    query = f"SELECT {select} FROM {fromTbl} GROUP BY {group} ORDER BY {order}"
+
+    c.execute(query)
+    print(c.fetchall())
 
 if __name__ == "__main__":
     main()
