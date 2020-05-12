@@ -1,13 +1,15 @@
 import duckdb
 import helper
 import random
+import sys
 from datetime import date
 
-con = duckdb.connect(":memory:")
-c = con.cursor()
 sf = 0.1
 
 def main():
+    global con = duckdb.connect(":memory:")
+    global c = con.cursor()
+    
     testCon()
     createTables()
     importData()
