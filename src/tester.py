@@ -59,7 +59,7 @@ def main():
         closeProgram()
     
     sum = 0 
-    for i in range(5, 6):
+    for i in range(1, 23):
         function = f"query{i}()"
         try:
             if i == 15:
@@ -247,19 +247,31 @@ def query6():
         addDays = str(helper.yearsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' year"
+    if db == "sqlite":
+        dateIdentifier = ""
+        secondDate = f"date('{randDate}', '+1 year')"
+    else:
+        dateIdentifier = "DATE "
+        secondDate = f"DATE '{randDate}' + {addDays}"
     select = "sum(l_extendedprice * l_discount) as revenue"
     fromTbl = "lineitem"
-    where = f"l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays} AND l_discount between {discount} - 0.01 AND {discount} + 0.01 AND l_quantity < {quantity}"
+    where = f"l_shipdate >= {dateIdentifier}'{randDate}' AND l_shipdate < {secondDate} AND l_discount between {discount} - 0.01 AND {discount} + 0.01 AND l_quantity < {quantity}"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where}"
 
     return query
 
 def query7():
     (nation1, nation2) = helper.getNNames()
+    if db == "sqlite":
+        dateIdentifier = ""
+        extractYear = "strftime('%Y', l_shipdate)"
+    else:
+        dateIdentifier = "DATE "
+        extractYear = "extract(year from l_shipdate)"
     select = "supp_nation, cust_nation, l_year, sum(volume) as revenue"
-    subSelect = "n1.n_name as supp_nation, n2.n_name as cust_nation, extract(year from l_shipdate) as l_year, l_extendedprice * (1 - l_discount) as volume"
+    subSelect = f"n1.n_name as supp_nation, n2.n_name as cust_nation, {extractYear} as l_year, l_extendedprice * (1 - l_discount) as volume"
     subFromTbl = "supplier, lineitem, orders, customer, nation n1, nation n2"
-    subWhere = f"s_suppkey = l_suppkey AND o_orderkey = l_orderkey AND c_custkey = o_custkey AND s_nationkey = n1.n_nationkey AND c_nationkey = n2.n_nationkey AND ((n1.n_name = '{nation1}' AND n2.n_name = '{nation2}') OR (n1.n_name = '{nation2}' and n2.n_name = '{nation1}')) AND l_shipdate between date '1995-01-01' and date '1996-12-31'"
+    subWhere = f"s_suppkey = l_suppkey AND o_orderkey = l_orderkey AND c_custkey = o_custkey AND s_nationkey = n1.n_nationkey AND c_nationkey = n2.n_nationkey AND ((n1.n_name = '{nation1}' AND n2.n_name = '{nation2}') OR (n1.n_name = '{nation2}' and n2.n_name = '{nation1}')) AND l_shipdate between {dateIdentifier}'1995-01-01' and {dateIdentifier}'1996-12-31'"
     group = "supp_nation, cust_nation, l_year"
     order = "supp_nation, cust_nation, l_year"
     query = f"SELECT {select} FROM(SELECT {subSelect} FROM {subFromTbl} WHERE {subWhere}) AS shipping GROUP BY {group} ORDER BY {order}"
@@ -269,10 +281,16 @@ def query7():
 def query8():
     (nation, region) = helper.getNationAndRegion()
     typeString = helper.getTypeString()
+    if db == "sqlite":
+        dateIdentifier = ""
+        extractYear = "strftime('%Y', o_orderdate)"
+    else:
+        dateIdentifier = "DATE "
+        extractYear = "extract(year from o_orderdate)"
     select = f"o_year, SUM(CASE WHEN nation = '{nation}' THEN volume ELSE 0 END) / SUM(volume) as mkt_share"
-    subSelect = "extract(year from o_orderdate) as o_year, l_extendedprice * (1-l_discount) as volume, n2.n_name as nation"
+    subSelect = f"{extractYear} as o_year, l_extendedprice * (1-l_discount) as volume, n2.n_name as nation"
     subFrom = "part, supplier, lineitem, orders, customer, nation n1, nation n2, region"
-    subWhere = f"p_partkey = l_partkey AND s_suppkey = l_suppkey AND l_orderkey = o_orderkey AND o_custkey = c_custkey AND c_nationkey = n1.n_nationkey AND n1.n_regionkey = r_regionkey AND r_name = '{region}' AND s_nationkey = n2.n_nationkey AND o_orderdate between date '1995-01-01' and date '1996-12-31' AND p_type = '{typeString}'"
+    subWhere = f"p_partkey = l_partkey AND s_suppkey = l_suppkey AND l_orderkey = o_orderkey AND o_custkey = c_custkey AND c_nationkey = n1.n_nationkey AND n1.n_regionkey = r_regionkey AND r_name = '{region}' AND s_nationkey = n2.n_nationkey AND o_orderdate between {dateIdentifier}'1995-01-01' and {dateIdentifier}'1996-12-31' AND p_type = '{typeString}'"
     group = "o_year"
     order = "o_year"
     subQuery = f"SELECT {subSelect} FROM {subFrom} WHERE {subWhere}"
@@ -282,8 +300,12 @@ def query8():
 
 def query9():
     color = helper.getColor()
+    if db == "sqlite":
+        extractYear = "strftime('%Y', o_orderdate)"
+    else:
+        extractYear = "extract(year from o_orderdate)"
     select = "nation, o_year, SUM(amount) as sum_profit"
-    subSelect = "n_name as nation, extract(year from o_orderdate) as o_year, l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount"
+    subSelect = f"n_name as nation, {extractYear} as o_year, l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount"
     subFrom = "part, supplier, lineitem, partsupp, orders, nation"
     subWhere = f"s_suppkey = l_suppkey AND ps_suppkey = l_suppkey AND ps_partkey = l_partkey AND p_partkey = l_partkey AND o_orderkey = l_orderkey AND s_nationkey = n_nationkey AND p_name like '%{color}%'"
     group = "nation, o_year"
@@ -299,9 +321,15 @@ def query10():
         addDays = str(helper.monthsToDays(randDate, 3))
     elif db == "monet":
         addDays = "interval '3' month"
+    if db == "sqlite":
+        dateIdentifier = ""
+        secondDate = f"date('{randDate}', '+3 month')"
+    else:
+        dateIdentifier = "DATE "
+        secondDate = f"DATE '{randDate}' + {addDays}"
     select = "c_custkey, c_name, sum(l_extendedprice * (1 - l_discount)) as revenue, c_acctbal, n_name, c_address, c_phone, c_comment"
     fromTbl = "customer, orders, lineitem, nation"
-    where = f"c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= date '{randDate}' AND o_orderdate < date '{randDate}' + {addDays} AND l_returnflag = 'R' AND c_nationkey = n_nationkey"
+    where = f"c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= {dateIdentifier}'{randDate}' AND o_orderdate < {secondDate} AND l_returnflag = 'R' AND c_nationkey = n_nationkey"
     group = "c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment"
     order = "revenue desc"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
@@ -330,9 +358,15 @@ def query12():
         addDays = str(helper.yearsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' year"
+    if db == "sqlite":
+        dateIdentifier = ""
+        secondDate = f"date('{randDate}', '+1 year')"
+    else:
+        dateIdentifier = "DATE "
+        secondDate = f"DATE '{randDate}' + {addDays}"
     select = "l_shipmode, SUM(CASE WHEN o_orderpriority ='1-URGENT' OR o_orderpriority ='2-HIGH' THEN 1 ELSE 0 END) AS high_line_count, SUM(CASE WHEN o_orderpriority <> '1-URGENT' AND o_orderpriority <> '2-HIGH' THEN 1 ELSE 0 END) AS low_line_count"
     fromTbl = "orders, lineitem"
-    where = f"o_orderkey = l_orderkey AND l_shipmode in ('{shipmode1}', '{shipmode2}') AND l_commitdate < l_receiptdate AND l_shipdate < l_commitdate AND l_receiptdate >= date '{randDate}' AND l_receiptdate < date '{randDate}' + {addDays}"
+    where = f"o_orderkey = l_orderkey AND l_shipmode in ('{shipmode1}', '{shipmode2}') AND l_commitdate < l_receiptdate AND l_shipdate < l_commitdate AND l_receiptdate >= {dateIdentifier}'{randDate}' AND l_receiptdate < {secondDate}"
     group = "l_shipmode"
     order = "l_shipmode"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
@@ -342,7 +376,7 @@ def query12():
 def query13():
     (word1, word2) = helper.getWords()
     select = "c_count, count(*) as custdist"
-    fromTbl = f"(SELECT c_custkey, count(o_orderkey) FROM customer LEFT OUTER JOIN orders ON c_custkey = o_custkey AND o_comment not like '%{word1}%{word2}%' GROUP BY c_custkey) AS c_orders (c_custkey, c_count)"
+    fromTbl = f"(SELECT c_custkey, count(o_orderkey) as c_count FROM customer LEFT OUTER JOIN orders ON c_custkey = o_custkey AND o_comment not like '%{word1}%{word2}%' GROUP BY c_custkey) AS c_orders"
     group = "c_count"
     order = "custdist DESC, c_count DESC"
     query = f"SELECT {select} FROM {fromTbl} GROUP BY {group} ORDER BY {order}"
@@ -355,28 +389,40 @@ def query14():
         addDays = str(helper.monthsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' month"
+    if db == "sqlite":
+        dateIdentifier = ""
+        secondDate = f"date('{randDate}', '+1 month')"
+    else:
+        dateIdentifier = "DATE "
+        secondDate = f"DATE '{randDate}' + {addDays}"
     select = "100.00 * SUM(CASE WHEN p_type like 'PROMO%' THEN l_extendedprice*(1-l_discount) ELSE 0 END) / SUM(l_extendedprice * (1 - l_discount)) AS promo_revenue"
     fromTbl = "lineitem, part"
-    where = f"l_partkey = p_partkey AND l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays}"
+    where = f"l_partkey = p_partkey AND l_shipdate >= {dateIdentifier}'{randDate}' AND l_shipdate < {secondDate}"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where}"
 
     return query
 
 def query15():
-   randDate = helper.getRandMonth(date(1993, 1, 1), date(1997, 10, 1))
-   if db == "duck":
+    randDate = helper.getRandMonth(date(1993, 1, 1), date(1997, 10, 1))
+    if db == "duck":
         addDays = str(helper.monthsToDays(randDate, 3))
-   elif db == "monet":
-        addDays = "interval '3' day"
-   view = f"CREATE VIEW revenue (supplier_no, total_revenue) AS SELECT l_suppkey, sum(l_extendedprice * (1 - l_discount)) FROM lineitem WHERE l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays} GROUP BY l_suppkey"
-   select = "s_suppkey, s_name, s_address, s_phone, total_revenue"
-   fromTbl = "supplier, revenue"
-   where = "s_suppkey = supplier_no AND total_revenue = (SELECT max(total_revenue) FROM revenue)"
-   order = "s_suppkey"
-   drop = "DROP VIEW revenue"
-   query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order}"
+    elif db == "monet":
+        addDays = "interval '3' month"
+    if db == "sqlite":
+        dateIdentifier = ""
+        secondDate = f"date('{randDate}', '+3 month')"
+    else:
+        dateIdentifier = "DATE "
+        secondDate = f"DATE '{randDate}' + {addDays}"
+    view = f"CREATE VIEW revenue (supplier_no, total_revenue) AS SELECT l_suppkey, sum(l_extendedprice * (1 - l_discount)) FROM lineitem WHERE l_shipdate >= {dateIdentifier}'{randDate}' AND l_shipdate < {secondDate} GROUP BY l_suppkey"
+    select = "s_suppkey, s_name, s_address, s_phone, total_revenue"
+    fromTbl = "supplier, revenue"
+    where = "s_suppkey = supplier_no AND total_revenue = (SELECT max(total_revenue) FROM revenue)"
+    order = "s_suppkey"
+    drop = "DROP VIEW revenue"
+    query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order}"
    
-   return (view, query, drop)
+    return (view, query, drop)
 
 def query16():
     brand = helper.getBrand()
@@ -441,9 +487,15 @@ def query20():
         addDays = str(helper.yearsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' year"
+    if db == "sqlite":
+        dateIdentifier = ""
+        secondDate = f"date('{randDate}', '+1 year')"
+    else:
+        dateIdentifier = "DATE "
+        secondDate = f"DATE '{randDate}' + {addDays}"
     select = "s_name, s_address"
     fromTbl = "supplier, nation"
-    subQuery = f"SELECT ps_suppkey FROM partsupp WHERE ps_partkey in (SELECT p_partkey FROM part WHERE p_name LIKE '{color}%') AND  ps_availqty > (SELECT 0.5 * SUM(l_quantity) FROM lineitem WHERE l_partkey = ps_partkey AND l_suppkey = ps_suppkey AND l_shipdate >= date '{randDate}' AND l_shipdate < date '{randDate}' + {addDays})"
+    subQuery = f"SELECT ps_suppkey FROM partsupp WHERE ps_partkey in (SELECT p_partkey FROM part WHERE p_name LIKE '{color}%') AND  ps_availqty > (SELECT 0.5 * SUM(l_quantity) FROM lineitem WHERE l_partkey = ps_partkey AND l_suppkey = ps_suppkey AND l_shipdate >= {dateIdentifier}'{randDate}' AND l_shipdate < {secondDate})"
     where = f"s_suppkey IN ({subQuery}) AND s_nationkey = n_nationkey AND n_name = '{nation}'"
     order = "s_name"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} ORDER BY {order}"
@@ -464,10 +516,14 @@ def query21():
 
 def query22():
     codes = helper.getCountryCodes()
+    if db == "sqlite":
+        substring = "substr(c_phone, 1, 2)"
+    else:
+        substring = "substring(c_phone from 1 for 2)"
     select = "cntrycode, count(*) as numcust, sum(c_acctbal) as totacctbal"
-    subSelect = "substring(c_phone from 1 for 2) as cntrycode, c_acctbal"
+    subSelect = f"{substring} as cntrycode, c_acctbal"
     subFromTbl = "customer"
-    subWhere = f"substring(c_phone from 1 for 2) IN ({codes}) AND c_acctbal > (SELECT avg(c_acctbal) FROM customer WHERE c_acctbal > 0.00 AND substring (c_phone from 1 for 2) IN ({codes})) AND not exists (SELECT * FROM orders WHERE o_custkey = c_custkey)"
+    subWhere = f"{substring} IN ({codes}) AND c_acctbal > (SELECT avg(c_acctbal) FROM customer WHERE c_acctbal > 0.00 AND {substring} IN ({codes})) AND not exists (SELECT * FROM orders WHERE o_custkey = c_custkey)"
     subQuery = f"SELECT {subSelect} FROM {subFromTbl} WHERE {subWhere}"
     fromTbl = f"({subQuery}) AS custsale"
     group = "cntrycode"
