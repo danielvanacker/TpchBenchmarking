@@ -1,8 +1,12 @@
 import duckdb
 import helper
 import monetdblite
+import os
+import pandas as pd
 import random
+import sqlite3
 import sys
+import traceback
 from datetime import date
 from timeit import default_timer as timer
 
@@ -29,6 +33,10 @@ def main():
             con = monetdblite.make_connection(":memory:")
             c = con.cursor()
 
+        elif db == "sqlite":
+            con = sqlite3.connect(":memory:")
+            c = con.cursor()
+
         else:
             print("Not a recognized database")
             return
@@ -41,15 +49,17 @@ def main():
         testCon()
     except RuntimeError:
         print("Tests are failing.")
+        closeProgram()
     
     try:
         createTables()
         importData(db)
     except RuntimeError:
         print("Error importing data or creating tables.")
+        closeProgram()
     
-    
-    for i in range(1, 23):
+    sum = 0 
+    for i in range(5, 6):
         function = f"query{i}()"
         try:
             if i == 15:
@@ -65,8 +75,20 @@ def main():
                 c.execute(query)
                 end = timer()
             print(f"Query {i} took {end - start} seconds.")
+            sum = sum + (end - start)
         except:
+            track = traceback.format_exc()
+            print(track)
             print(f"Error executing query {i}.")
+
+    print(f"Total query time: {sum} seconds.")
+    closeProgram()
+
+def closeProgram():
+    try:
+        con.close()
+    except:
+        print("Error closing connection")
 
 def testCon():
     c.execute("CREATE TABLE people(name VARCHAR(50), age INTEGER, sex CHAR(1))")
@@ -105,18 +127,16 @@ def importData(db):
             toExecute = "COPY " + table +  " FROM '../data/" + table + ".tbl' (DELIMITER '|');"
         elif db == "monet":
             toExecute = "COPY INTO " + table +  " FROM '/home/2017/dvanac/Comp400/test_runners/data/" + table + ".tbl' USING DELIMITERS '|', '" + "\n"  + "';"
+        elif db == "sqlite" or db =="pandas":
+            df = pd.read_csv(f'../data/{table}.tbl', sep='|', index_col=False, names=helper.getTableColumns(table))
+            print(f"Inserting into table: {table}")
+            df.to_sql(table, con=con, if_exists = 'append', index=False)
+            print("Success.")
+            continue
+            
         print("Executing:", toExecute)
         c.execute(toExecute)
         print("Complete")
-
-def importMonetData():
-
-    tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
-    for table in tables:
-        toExecute = "COPY INTO " + table +  " FROM '/home/2017/dvanac/Comp400/test_runners/data/" + table + ".tbl' USING DELIMITERS '|', '" + "\n"  + "';"
-        print(toExecute)
-        c.execute(toExecute)
-        print("Executed insert on table:", table)
 
 def sqlLoop():
     while True:
@@ -131,9 +151,13 @@ def sqlLoop():
 
 def query1():
     delta = helper.rand(60, 120)
+    if db == "sqlite":
+        dateIdentifier = ""
+    else:
+        dateIdentifier = "DATE "
     select = "l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * ( 1 - l_discount) * ( 1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order"
     fromTbl = "lineitem"
-    where = f"l_shipdate <= DATE '1998-12-01' - {str(delta)}"
+    where = f"l_shipdate <= {dateIdentifier}'1998-12-01' - {str(delta)}"
     group = "l_returnflag, l_linestatus"
     order = "l_returnflag, l_linestatus"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
@@ -157,9 +181,13 @@ def query2():
 def query3():
     segment = helper.getSegment()
     randDate = helper.getRandDate(date(1995, 3, 1), date(1995, 3, 31))
+    if db == "sqlite":
+        dateIdentifier = ""
+    else:
+        dateIdentifier = "DATE "
     select = "l_orderkey, sum(l_extendedprice * (1 - l_discount)) as revenue, o_orderdate, o_shippriority"
     fromTbl = "customer, orders, lineitem"
-    where = f"c_mktsegment = '{segment}' AND c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate < date '{randDate}' AND l_shipdate > date '{randDate}'"
+    where = f"c_mktsegment = '{segment}' AND c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate < {dateIdentifier}'{randDate}' AND l_shipdate > {dateIdentifier}'{randDate}'"
     group = "l_orderkey, o_orderdate, o_shippriority"
     order = "revenue desc, o_orderdate"
     limit = "LIMIT 10"
@@ -173,10 +201,16 @@ def query4():
         addDays = str(helper.monthsToDays(randDate, 3))
     elif db == "monet":
         addDays = "interval '3' month"
+    if db == "sqlite":
+        dateIdentifier = ""
+        secondDate = f"date('{randDate}', '+3 month')"
+    else:
+        dateIdentifier = "DATE "
+        secondDate = f"DATE '{randDate}' + {addDays}"
     subQuery = f"SELECT * FROM lineitem WHERE l_orderkey = o_orderkey AND l_commitdate < l_receiptdate"
     select = "o_orderpriority, count(*) as order_count"
     fromTbl = "orders"
-    where = f"o_orderdate >= date '{randDate}' AND o_orderdate < date '{randDate}' + {addDays} AND exists ({subQuery})"
+    where = f"o_orderdate >= {dateIdentifier}'{randDate}' AND o_orderdate < {secondDate} AND exists ({subQuery})"
     group = "o_orderpriority"
     order = "o_orderpriority"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
@@ -189,10 +223,16 @@ def query5():
     if db == "duck":
         addDays = str(helper.yearsToDays(randDate, 1))
     elif db == "monet":
-        addDays = "interval '1' year"    
+        addDays = "interval '1' year"
+    if db == "sqlite":
+        dateIdentifier = ""
+        secondDate = f"date('{randDate}', '+1 year')"
+    else:
+        dateIdentifier = "DATE "
+        secondDate = f"DATE '{randDate}' + {addDays}"
     select = "n_name, sum(l_extendedprice * (1 - l_discount)) as revenue"
     fromTbl = "customer, orders, lineitem, supplier, nation, region"
-    where = f"c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '{region}' AND o_orderdate >= date '{randDate}' AND o_orderdate < date '{randDate}' + {addDays}"
+    where = f"c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = '{region}' AND o_orderdate >= {dateIdentifier}'{randDate}' AND o_orderdate < {secondDate}"
     group = "n_name"
     order = "revenue desc"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
