@@ -79,7 +79,7 @@ def runTest(output, numRuns):
     resultSet.append(headers)
     for x in range(0, numRuns):
         numSet = []
-        for i in range(9, 10):
+        for i in range(15, 16):
             function = f"query{i}()"
             try:
                 if i == 15:
@@ -92,12 +92,13 @@ def runTest(output, numRuns):
                         end = timer()
                     else:
                         start = timer()
-                        c(view)
-                        df = c(query)
-                        c(drop)
+                        global revenue
+			revenue = c(view)
+			df = c(query)
+                        del revenue
                         end = timer()
-                        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-                            print(df)
+                        with pd.option_context('display.max_rows', 10, 'display.max_columns', None):
+                	print(df)
                 else:
                     query = eval(function)
                     if db != "pandas":
@@ -109,7 +110,7 @@ def runTest(output, numRuns):
                         start = timer()
                         df = c(query)
                         end = timer()
-                        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+                        with pd.option_context('display.max_rows', 10, 'display.max_columns', None):
                             print(df)
                 numSet.append(end-start)
                 print(f"Query {i} complete.")
@@ -476,7 +477,10 @@ def query15():
     else:
         dateIdentifier = "DATE "
         secondDate = f"DATE '{randDate}' + {addDays}"
-    view = f"CREATE VIEW revenue (supplier_no, total_revenue) AS SELECT l_suppkey, sum(l_extendedprice * (1 - l_discount)) FROM lineitem WHERE l_shipdate >= {dateIdentifier}'{randDate}' AND l_shipdate < {secondDate} GROUP BY l_suppkey"
+    if db == "pandas":
+	view = f"SELECT l_suppkey as supplier_no, sum(l_extendedprice * (1 - l_discount)) as total_revenue FROM lineitem WHERE l_shipdate >= {dateIdentifier}'{randDate}' AND l_shipdate < {secondDate} GROUP BY l_suppkey"
+    else:    
+	view = f"CREATE VIEW revenue (supplier_no, total_revenue) AS SELECT l_suppkey, sum(l_extendedprice * (1 - l_discount)) FROM lineitem WHERE l_shipdate >= {dateIdentifier}'{randDate}' AND l_shipdate < {secondDate} GROUP BY l_suppkey"
     select = "s_suppkey, s_name, s_address, s_phone, total_revenue"
     fromTbl = "supplier, revenue"
     where = "s_suppkey = supplier_no AND total_revenue = (SELECT max(total_revenue) FROM revenue)"
