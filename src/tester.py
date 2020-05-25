@@ -93,8 +93,8 @@ def runTest(output, numRuns):
                     else:
                         start = timer()
                         global revenue
-			revenue = c(view)
-			df = c(query)
+			            revenue = c(view)
+			            df = c(query)
                         del revenue
                         end = timer()
                         with pd.option_context('display.max_rows', 10, 'display.max_columns', None):
