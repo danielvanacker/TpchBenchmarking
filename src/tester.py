@@ -1,3 +1,4 @@
+import csv
 import duckdb
 import helper
 import monetdblite
@@ -9,20 +10,23 @@ import sys
 import traceback
 from datetime import date
 from timeit import default_timer as timer
+from pandasql import sqldf
 
 sf = 0.1
 con = None
 db = None
 
 def main():
-    if len(sys.argv) == 0:
-        print("Please provide the database name you want to test (duck or monet).")
+    if len(sys.argv) < 4:
+        print("Please provide: db_name num_runs output.csv")
         return
     
     global con
     global c
     global db
     db = sys.argv[1]
+    numRuns =int(sys.argv[2])
+    output = sys.argv[3]
     
     try:
         if db == "duck":
@@ -36,6 +40,12 @@ def main():
         elif db == "sqlite":
             con = sqlite3.connect(":memory:")
             c = con.cursor()
+        elif db == "pandas":
+            c = lambda q: sqldf(q, globals())
+            pandasqlSetup()
+            runTest(output, numRuns)
+            return
+    
 
         else:
             print("Not a recognized database")
@@ -53,40 +63,77 @@ def main():
     
     try:
         createTables()
-        importData(db)
+        importData()
     except RuntimeError:
         print("Error importing data or creating tables.")
         closeProgram()
-    
-    sum = 0 
-    for i in range(1, 23):
-        function = f"query{i}()"
-        try:
-            if i == 15:
-                (view, query, drop) = eval(function)
-                start = timer()
-                c.execute(view)
-                c.execute(query)
-                c.execute(drop)
-                end = timer()
-            else:
-                query = eval(function)
-                start = timer()
-                c.execute(query)
-                end = timer()
-            print(f"Query {i} took {end - start} seconds.")
-            sum = sum + (end - start)
-        except:
-            track = traceback.format_exc()
-            print(track)
-            print(f"Error executing query {i}.")
 
-    print(f"Total query time: {sum} seconds.")
+    runTest(output, numRuns)
+
+def runTest(output, numRuns):
+    sum = 0
+    resultSet = []
+    headers = []
+    for i in range(1, 23):
+        headers.append(f"q{i}")
+    resultSet.append(headers)
+    for x in range(0, numRuns):
+        numSet = []
+        for i in range(9, 10):
+            function = f"query{i}()"
+            try:
+                if i == 15:
+                    (view, query, drop) = eval(function)
+                    if db != "pandas":
+                        start = timer()
+                        c.execute(view)
+                        c.execute(query)
+                        c.execute(drop)
+                        end = timer()
+                    else:
+                        start = timer()
+                        c(view)
+                        df = c(query)
+                        c(drop)
+                        end = timer()
+                        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+                            print(df)
+                else:
+                    query = eval(function)
+                    if db != "pandas":
+                        start = timer()
+                        c.execute(query)
+                        end = timer()
+                        print(c.fetchall())
+                    else:
+                        start = timer()
+                        df = c(query)
+                        end = timer()
+                        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+                            print(df)
+                numSet.append(end-start)
+                print(f"Query {i} complete.")
+            except:
+                track = traceback.format_exc()
+                print(track)
+                print(f"Error executing query {i}.")
+                numSet.append(-1)
+
+        resultSet.append(numSet)
+        print(f"Iteration {x} complete.")
+   
+    if output == "print":
+        print(resultSet)
+        closeProgram() 
+    with open(f"{output}.csv", 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(resultSet)
     closeProgram()
 
 def closeProgram():
     try:
-        con.close()
+        if db != "pandas":
+            con.close()
     except:
         print("Error closing connection")
 
@@ -95,6 +142,20 @@ def testCon():
     c.execute("INSERT INTO people VALUES ('Daniel', 20, 'M')")
     c.execute("SELECT * FROM people")
     print(c.fetchall())
+
+def pandasqlSetup():
+    print("Creating panada dataframes...")
+    global region, nation, part, supplier, partsupp, customer, orders, lineitem
+    region = pd.read_csv('../data/region.tbl', sep='|', index_col=False, names=helper.getTableColumns("region"))
+    nation = pd.read_csv('../data/nation.tbl', sep='|', index_col=False, names=helper.getTableColumns("nation"))
+    part = pd.read_csv('../data/part.tbl', sep='|', index_col=False, names=helper.getTableColumns("part"))
+    supplier = pd.read_csv('../data/supplier.tbl', sep='|', index_col=False, names=helper.getTableColumns("supplier"))
+    partsupp = pd.read_csv('../data/partsupp.tbl', sep='|', index_col=False, names=helper.getTableColumns("partsupp"))
+    customer = pd.read_csv('../data/customer.tbl', sep='|', index_col=False, names=helper.getTableColumns("customer"))
+    orders = pd.read_csv('../data/orders.tbl', sep='|', index_col=False, names=helper.getTableColumns("orders"))
+    lineitem = pd.read_csv('../data/lineitem.tbl', sep='|', index_col=False, names=helper.getTableColumns("lineitem"))
+    print("All dataframes created.")
+
 
 def createTables():
     regionTable = "CREATE TABLE region(r_regionkey TINYINT PRIMARY KEY, r_name CHAR(25), r_comment VARCHAR(152))"
@@ -119,7 +180,7 @@ def createTables():
         c.execute(table)
         print("Complete")
 
-def importData(db):
+def importData():
 
     tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
     for table in tables:
@@ -151,7 +212,7 @@ def sqlLoop():
 
 def query1():
     delta = helper.rand(60, 120)
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
     else:
         dateIdentifier = "DATE "
@@ -181,7 +242,7 @@ def query2():
 def query3():
     segment = helper.getSegment()
     randDate = helper.getRandDate(date(1995, 3, 1), date(1995, 3, 31))
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
     else:
         dateIdentifier = "DATE "
@@ -201,7 +262,7 @@ def query4():
         addDays = str(helper.monthsToDays(randDate, 3))
     elif db == "monet":
         addDays = "interval '3' month"
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         secondDate = f"date('{randDate}', '+3 month')"
     else:
@@ -224,7 +285,7 @@ def query5():
         addDays = str(helper.yearsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' year"
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         secondDate = f"date('{randDate}', '+1 year')"
     else:
@@ -247,7 +308,7 @@ def query6():
         addDays = str(helper.yearsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' year"
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         secondDate = f"date('{randDate}', '+1 year')"
     else:
@@ -262,7 +323,7 @@ def query6():
 
 def query7():
     (nation1, nation2) = helper.getNNames()
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         extractYear = "strftime('%Y', l_shipdate)"
     else:
@@ -278,10 +339,11 @@ def query7():
 
     return query
 
+#Had to move 'region' table to be first in the ordering of tables in the subquery to get this query to work with pandasql.
 def query8():
     (nation, region) = helper.getNationAndRegion()
     typeString = helper.getTypeString()
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         extractYear = "strftime('%Y', o_orderdate)"
     else:
@@ -289,7 +351,7 @@ def query8():
         extractYear = "extract(year from o_orderdate)"
     select = f"o_year, SUM(CASE WHEN nation = '{nation}' THEN volume ELSE 0 END) / SUM(volume) as mkt_share"
     subSelect = f"{extractYear} as o_year, l_extendedprice * (1-l_discount) as volume, n2.n_name as nation"
-    subFrom = "part, supplier, lineitem, orders, customer, nation n1, nation n2, region"
+    subFrom = "region, part, supplier, lineitem, orders, customer, nation n1, nation n2"
     subWhere = f"p_partkey = l_partkey AND s_suppkey = l_suppkey AND l_orderkey = o_orderkey AND o_custkey = c_custkey AND c_nationkey = n1.n_nationkey AND n1.n_regionkey = r_regionkey AND r_name = '{region}' AND s_nationkey = n2.n_nationkey AND o_orderdate between {dateIdentifier}'1995-01-01' and {dateIdentifier}'1996-12-31' AND p_type = '{typeString}'"
     group = "o_year"
     order = "o_year"
@@ -300,7 +362,7 @@ def query8():
 
 def query9():
     color = helper.getColor()
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         extractYear = "strftime('%Y', o_orderdate)"
     else:
         extractYear = "extract(year from o_orderdate)"
@@ -321,7 +383,7 @@ def query10():
         addDays = str(helper.monthsToDays(randDate, 3))
     elif db == "monet":
         addDays = "interval '3' month"
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         secondDate = f"date('{randDate}', '+3 month')"
     else:
@@ -358,7 +420,7 @@ def query12():
         addDays = str(helper.yearsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' year"
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         secondDate = f"date('{randDate}', '+1 year')"
     else:
@@ -389,7 +451,7 @@ def query14():
         addDays = str(helper.monthsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' month"
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         secondDate = f"date('{randDate}', '+1 month')"
     else:
@@ -408,7 +470,7 @@ def query15():
         addDays = str(helper.monthsToDays(randDate, 3))
     elif db == "monet":
         addDays = "interval '3' month"
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         secondDate = f"date('{randDate}', '+3 month')"
     else:
@@ -487,7 +549,7 @@ def query20():
         addDays = str(helper.yearsToDays(randDate, 1))
     elif db == "monet":
         addDays = "interval '1' year"
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         dateIdentifier = ""
         secondDate = f"date('{randDate}', '+1 year')"
     else:
@@ -516,7 +578,7 @@ def query21():
 
 def query22():
     codes = helper.getCountryCodes()
-    if db == "sqlite":
+    if db == "sqlite" or db == "pandas":
         substring = "substr(c_phone, 1, 2)"
     else:
         substring = "substring(c_phone from 1 for 2)"
