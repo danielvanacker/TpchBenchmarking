@@ -45,6 +45,11 @@ def main():
             pandasqlSetup()
             runTest(output, numRuns)
             return
+        elif db == "sqliteopt":
+            con = sqlite3.connect(":memory:")
+            c = con.cursor()
+            c.execute("PRAGMA synchronous = NORMAL")
+            db = "sqlite"
     
 
         else:
@@ -79,7 +84,7 @@ def runTest(output, numRuns):
     resultSet.append(headers)
     for x in range(0, numRuns):
         numSet = []
-        for i in range(15, 16):
+        for i in range(1, 23):
             function = f"query{i}()"
             try:
                 if i == 15:
@@ -96,22 +101,20 @@ def runTest(output, numRuns):
                         revenue = c(view)
                         df = c(query)
                         del revenue
-                        end = timer()
-                        with pd.option_context('display.max_rows', 10, 'display.max_columns', None):
-                            print(df)
+                        end = timer()                        
                 else:
                     query = eval(function)
                     if db != "pandas":
                         start = timer()
                         c.execute(query)
                         end = timer()
-                        print(c.fetchall())
+                        #print(c.fetchall())
                     else:
                         start = timer()
                         df = c(query)
                         end = timer()
-                        with pd.option_context('display.max_rows', 10, 'display.max_columns', None):
-                            print(df)
+                        #with pd.option_context('display.max_rows', 10, 'display.max_columns', None):
+                            #print(df)
                 numSet.append(end-start)
                 print(f"Query {i} complete.")
             except:
@@ -146,15 +149,16 @@ def testCon():
 
 def pandasqlSetup():
     print("Creating panada dataframes...")
+    path = "/scratch/dvanac/data"
     global region, nation, part, supplier, partsupp, customer, orders, lineitem
-    region = pd.read_csv('../data/region.tbl', sep='|', index_col=False, names=helper.getTableColumns("region"))
-    nation = pd.read_csv('../data/nation.tbl', sep='|', index_col=False, names=helper.getTableColumns("nation"))
-    part = pd.read_csv('../data/part.tbl', sep='|', index_col=False, names=helper.getTableColumns("part"))
-    supplier = pd.read_csv('../data/supplier.tbl', sep='|', index_col=False, names=helper.getTableColumns("supplier"))
-    partsupp = pd.read_csv('../data/partsupp.tbl', sep='|', index_col=False, names=helper.getTableColumns("partsupp"))
-    customer = pd.read_csv('../data/customer.tbl', sep='|', index_col=False, names=helper.getTableColumns("customer"))
-    orders = pd.read_csv('../data/orders.tbl', sep='|', index_col=False, names=helper.getTableColumns("orders"))
-    lineitem = pd.read_csv('../data/lineitem.tbl', sep='|', index_col=False, names=helper.getTableColumns("lineitem"))
+    region = pd.read_csv(f"{path}/region.tbl", sep='|', index_col=False, names=helper.getTableColumns("region"))
+    nation = pd.read_csv(f"{path}/nation.tbl", sep='|', index_col=False, names=helper.getTableColumns("nation"))
+    part = pd.read_csv(f"{path}/part.tbl", sep='|', index_col=False, names=helper.getTableColumns("part"))
+    supplier = pd.read_csv(f"{path}/supplier.tbl", sep='|', index_col=False, names=helper.getTableColumns("supplier"))
+    partsupp = pd.read_csv(f"{path}/partsupp.tbl", sep='|', index_col=False, names=helper.getTableColumns("partsupp"))
+    customer = pd.read_csv(f"{path}/customer.tbl", sep='|', index_col=False, names=helper.getTableColumns("customer"))
+    orders = pd.read_csv(f"{path}/orders.tbl", sep='|', index_col=False, names=helper.getTableColumns("orders"))
+    lineitem = pd.read_csv(f"{path}/lineitem.tbl", sep='|', index_col=False, names=helper.getTableColumns("lineitem"))
     print("All dataframes created.")
 
 
@@ -183,14 +187,15 @@ def createTables():
 
 def importData():
 
+    path = "/scratch/dvanac/data"
     tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
     for table in tables:
         if db == "duck":    
-            toExecute = "COPY " + table +  " FROM '../data/" + table + ".tbl' (DELIMITER '|');"
+            toExecute = f"COPY {table} FROM '{path}/{table}.tbl' (DELIMITER '|');"
         elif db == "monet":
-            toExecute = "COPY INTO " + table +  " FROM '/home/2017/dvanac/Comp400/test_runners/data/" + table + ".tbl' USING DELIMITERS '|', '" + "\n"  + "';"
+            toExecute = f"COPY INTO {table} FROM '{path}/{table}.tbl' USING DELIMITERS '|', '\n';"
         elif db == "sqlite" or db =="pandas":
-            df = pd.read_csv(f'../data/{table}.tbl', sep='|', index_col=False, names=helper.getTableColumns(table))
+            df = pd.read_csv(f'{path}/{table}.tbl', sep='|', index_col=False, names=helper.getTableColumns(table))
             print(f"Inserting into table: {table}")
             df.to_sql(table, con=con, if_exists = 'append', index=False)
             print("Success.")
@@ -214,12 +219,12 @@ def sqlLoop():
 def query1():
     delta = helper.rand(60, 120)
     if db == "sqlite" or db == "pandas":
-        dateIdentifier = ""
+        date = f"date('1998-12-01', '-{delta} day')"
     else:
-        dateIdentifier = "DATE "
+        date = f"DATE '1998-12-01' - {str(delta)} "
     select = "l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * ( 1 - l_discount) * ( 1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order"
     fromTbl = "lineitem"
-    where = f"l_shipdate <= {dateIdentifier}'1998-12-01' - {str(delta)}"
+    where = f"l_shipdate <= {date}"
     group = "l_returnflag, l_linestatus"
     order = "l_returnflag, l_linestatus"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
@@ -571,7 +576,7 @@ def query20():
 def query21():
     (nation, tmp) = helper.getNNames()
     select = "s_name, count(*) as numwait"
-    fromTbl = "supplier, lineitem l1, orders, nation"
+    fromTbl = "supplier, orders, nation, lineitem l1"
     where = f"s_suppkey = l1.l_suppkey AND o_orderkey = l1.l_orderkey AND o_orderstatus = 'F' AND l1.l_receiptdate > l1.l_commitdate AND exists (SELECT * FROM lineitem l2 WHERE l2.l_orderkey = l1.l_orderkey AND l2.l_suppkey <> l1.l_suppkey) AND not exists (SELECT * FROM lineitem l3 WHERE l3.l_orderkey = l1.l_orderkey AND l3.l_suppkey <> l1.l_suppkey AND l3.l_receiptdate > l3.l_commitdate) AND s_nationkey = n_nationkey AND n_name = '{nation}'"
     group = "s_name"
     order = "numwait DESC, s_name"
