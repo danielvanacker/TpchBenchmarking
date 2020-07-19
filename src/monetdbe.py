@@ -1,166 +1,84 @@
+import monetdbe
 import csv
-import duckdb
-import helper
-import monetdblite
-import os
-import pandas as pd
-import random
-import sqlite3
 import sys
-import traceback
-from datetime import date
+import helper
+import random
 from timeit import default_timer as timer
-from pandasql import sqldf
-
-sf = 0.1
-con = None
-db = None
+from datetime import datetime, timedelta, date
+path = "/scratch/dvanac/data_2"
+db = "monet" #monetdb has same syntax for all monetdblite queries.
+sf = 2.0
 
 def main():
-    if len(sys.argv) < 4:
-        print("Please provide: db_name num_runs output.csv")
+    if len(sys.argv) < 3:
+        print("Please provide: num_runs output.csv query")
         return
-    
-    global con
+    numRuns =int(sys.argv[1])
+    output = sys.argv[2]
+    query = int(sys.argv[3])
+    con = monetdbe.connect(':memory:')
     global c
-    global db
-    db = sys.argv[1]
-    numRuns =int(sys.argv[2])
-    output = sys.argv[3]
-    
-    try:
-        if db == "duck":
-            con = duckdb.connect(":memory:")
-            c = con.cursor()
-        
-        elif db == "monet":
-            con = monetdblite.make_connection(":memory:")
-            c = con.cursor()
+    c = con.cursor()
+    createTables()
+    importData()
+    runTest(output, numRuns, query)
 
-        elif db == "sqlite":
-            con = sqlite3.connect(":memory:")
-            c = con.cursor()
-        elif db == "pandas":
-            c = lambda q: sqldf(q, globals())
-            pandasqlSetup()
-            runTest(output, numRuns)
-            return
-        elif db == "sqliteopt":
-            con = sqlite3.connect(":memory:")
-            c = con.cursor()
-            c.execute("PRAGMA synchronous = NORMAL")
-            db = "sqlite"
-    
-
-        else:
-            print("Not a recognized database")
-            return
-    
-    except RuntimeError:
-        print("Error creating database.")
-        return
-
-    try:
-        testCon()
-    except RuntimeError:
-        print("Tests are failing.")
-        closeProgram()
-    
-    try:
-        createTables()
-        importData()
-    except RuntimeError:
-        print("Error importing data or creating tables.")
-        closeProgram()
-
-    runTest(output, numRuns)
-
-def runTest(output, numRuns):
+def runTest(output, numRuns, i):
     sum = 0
     resultSet = []
     headers = []
-    for i in range(1, 23):
-        headers.append(f"q{i}")
+    headers.append(f"q{i}")
     resultSet.append(headers)
-    for x in range(0, numRuns):
+    for x in range(0, int(numRuns)):
         numSet = []
-        for i in range(1, 23):
-            function = f"query{i}()"
-            try:
-                if i == 15:
-                    (view, query, drop) = eval(function)
-                    if db != "pandas":
-                        start = timer()
-                        c.execute(view)
-                        c.execute(query)
-                        c.execute(drop)
-                        end = timer()
-                    else:
-                        start = timer()
-                        global revenue
-                        revenue = c(view)
-                        df = c(query)
-                        del revenue
-                        end = timer()                        
+        function = f"query{i}()"
+        try:
+            if i == 15:
+                (view, query, drop) = eval(function)
+                if db != "pandas":
+                    start = timer()
+                    c.execute(view)
+                    c.execute(query)
+                    c.execute(drop)
+                    end = timer()
                 else:
-                    query = eval(function)
-                    if db != "pandas":
-                        start = timer()
-                        c.execute(query)
-                        end = timer()
-                        #print(c.fetchall())
-                    else:
-                        start = timer()
-                        df = c(query)
-                        end = timer()
-                        #with pd.option_context('display.max_rows', 10, 'display.max_columns', None):
-                            #print(df)
-                numSet.append(end-start)
-                print(f"Query {i} complete.")
-            except:
-                track = traceback.format_exc()
-                print(track)
-                print(f"Error executing query {i}.")
-                numSet.append(-1)
+                    start = timer()
+                    global revenue
+                    revenue = c(view)
+                    df = c(query)
+                    del revenue
+                    end = timer()
+            else:
+                query = eval(function)
+                if db != "pandas":
+                    start = timer()
+                    c.execute(query)
+                    end = timer()
+                    print(c.fetchall())
+                else:
+                    start = timer()
+                    df = c(query)
+                    end = timer()
+                    #with pd.option_context('display.max_rows', 10, 'display.max_columns', None):
+                        #print(df)
+            print(end-start)
+            numSet.append(end-start)
+            print(f"Query {i} complete.")
+        except:
+            track = traceback.format_exc()
+            print(track)
+            print(f"Error executing query {i}.")
+            numSet.append(-1)
 
         resultSet.append(numSet)
         print(f"Iteration {x} complete.")
-   
+
     if output == "print":
         print(resultSet)
-        closeProgram() 
+        closeProgram()
     with open(f"{output}.csv", 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(resultSet)
-    closeProgram()
-
-def closeProgram():
-    try:
-        if db != "pandas":
-            con.close()
-    except:
-        print("Error closing connection")
-
-def testCon():
-    c.execute("CREATE TABLE people(name VARCHAR(50), age INTEGER, sex CHAR(1))")
-    c.execute("INSERT INTO people VALUES ('Daniel', 20, 'M')")
-    c.execute("SELECT * FROM people")
-    print(c.fetchall())
-
-def pandasqlSetup():
-    print("Creating panada dataframes...")
-    path = "/scratch/dvanac/data"
-    global region, nation, part, supplier, partsupp, customer, orders, lineitem
-    region = pd.read_csv(f"{path}/region.tbl", sep='|', index_col=False, names=helper.getTableColumns("region"))
-    nation = pd.read_csv(f"{path}/nation.tbl", sep='|', index_col=False, names=helper.getTableColumns("nation"))
-    part = pd.read_csv(f"{path}/part.tbl", sep='|', index_col=False, names=helper.getTableColumns("part"))
-    supplier = pd.read_csv(f"{path}/supplier.tbl", sep='|', index_col=False, names=helper.getTableColumns("supplier"))
-    partsupp = pd.read_csv(f"{path}/partsupp.tbl", sep='|', index_col=False, names=helper.getTableColumns("partsupp"))
-    customer = pd.read_csv(f"{path}/customer.tbl", sep='|', index_col=False, names=helper.getTableColumns("customer"))
-    orders = pd.read_csv(f"{path}/orders.tbl", sep='|', index_col=False, names=helper.getTableColumns("orders"))
-    lineitem = pd.read_csv(f"{path}/lineitem.tbl", sep='|', index_col=False, names=helper.getTableColumns("lineitem"))
-    print("All dataframes created.")
-
 
 def createTables():
     regionTable = "CREATE TABLE region(r_regionkey TINYINT PRIMARY KEY, r_name CHAR(25), r_comment VARCHAR(152))"
@@ -186,45 +104,23 @@ def createTables():
         print("Complete")
 
 def importData():
-
-    path = "/scratch/dvanac/data"
     tables = ["region", "nation", "part", "supplier", "partsupp", "customer", "orders", "lineitem"]
     for table in tables:
-        if db == "duck":    
-            toExecute = f"COPY {table} FROM '{path}/{table}.tbl' (DELIMITER '|');"
-        elif db == "monet":
-            toExecute = f"COPY INTO {table} FROM '{path}/{table}.tbl' USING DELIMITERS '|', '\n';"
-        elif db == "sqlite" or db =="pandas":
-            df = pd.read_csv(f'{path}/{table}.tbl', sep='|', index_col=False, names=helper.getTableColumns(table))
-            print(f"Inserting into table: {table}")
-            df.to_sql(table, con=con, if_exists = 'append', index=False)
-            print("Success.")
-            continue
-            
+        toExecute = f"COPY INTO {table} FROM '{path}/{table}.tbl' USING DELIMITERS '|', '\n';"
         print("Executing:", toExecute)
         c.execute(toExecute)
         print("Complete")
 
-def sqlLoop():
-    while True:
-        command = input("Please enter a SQL statement or exit to quit")
-        if(command == "exit"):
-            return
-        if(command == "18"):
-            query18()
-            continue
-        c.execute(command)
-        print(c.fetchall())
-
 def query1():
     delta = helper.rand(60, 120)
+    inputDate = datetime(1998, 12, 1) - timedelta(days=delta)
     if db == "sqlite" or db == "pandas":
-        date = f"date('1998-12-01', '-{delta} day')"
+        dateIdentifier = ""
     else:
-        date = f"DATE '1998-12-01' - {str(delta)} "
+        dateIdentifier = "DATE "
     select = "l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * ( 1 - l_discount) * ( 1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order"
     fromTbl = "lineitem"
-    where = f"l_shipdate <= {date}"
+    where = f"l_shipdate <= {dateIdentifier}'{inputDate}'"
     group = "l_returnflag, l_linestatus"
     order = "l_returnflag, l_linestatus"
     query = f"SELECT {select} FROM {fromTbl} WHERE {where} GROUP BY {group} ORDER BY {order}"
@@ -576,7 +472,7 @@ def query20():
 def query21():
     (nation, tmp) = helper.getNNames()
     select = "s_name, count(*) as numwait"
-    fromTbl = "supplier, orders, nation, lineitem l1"
+    fromTbl = "supplier, lineitem l1, orders, nation"
     where = f"s_suppkey = l1.l_suppkey AND o_orderkey = l1.l_orderkey AND o_orderstatus = 'F' AND l1.l_receiptdate > l1.l_commitdate AND exists (SELECT * FROM lineitem l2 WHERE l2.l_orderkey = l1.l_orderkey AND l2.l_suppkey <> l1.l_suppkey) AND not exists (SELECT * FROM lineitem l3 WHERE l3.l_orderkey = l1.l_orderkey AND l3.l_suppkey <> l1.l_suppkey AND l3.l_receiptdate > l3.l_commitdate) AND s_nationkey = n_nationkey AND n_name = '{nation}'"
     group = "s_name"
     order = "numwait DESC, s_name"
@@ -602,6 +498,4 @@ def query22():
     query = f"SELECT {select} FROM {fromTbl} GROUP BY {group} ORDER BY {order}"
 
     return query
-
-if __name__ == "__main__":
-    main()
+main()
