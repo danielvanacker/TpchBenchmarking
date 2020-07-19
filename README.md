@@ -1,5 +1,5 @@
 # TpchBenchmarking
-Supports monetdb, monetdbe, duckdb, sqlite, pandasql, and pandas TPC-H bencmarking.
+Supports monetdb, monetdbe, duckdb, sqlite, pandasql, and pandas [TPC-H bencmarking](http://www.tpc.org/tpch/).
 
 ## mainTester.py
 Runs tests on monetdb, duckdb, sqlite, and pandasql.
