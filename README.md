@@ -2,7 +2,7 @@
 Supports [monetdblite](https://www.monetdb.org/blog/monetdblite-for-python), [monetdbe](https://pypi.org/project/monetdbe/), [duckdb](https://duckdb.org/), [sqlite](https://www.sqlite.org/index.html), [pandasql](https://pypi.org/project/pandasql/), and [pandas](https://pandas.pydata.org/) [TPC-H bencmarking](http://www.tpc.org/tpch/).
 
 ## mainTester.py
-Runs tests on monetdb, duckdb, sqlite, and pandasql.
+Runs tests on monetdblite, duckdb, sqlite, and pandasql.
 ```bash
 python mainTester.py <test_target_name> <iterations> <output_csv> <query>
 ```
